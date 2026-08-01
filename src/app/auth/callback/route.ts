@@ -12,7 +12,10 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error("Error exchanging code for session:", error);
-      return NextResponse.redirect(new URL("/sign-in", requestUrl.origin));
+      // Email подтверждается на стороне Supabase при переходе по ссылке,
+      // но сессию создать нельзя (например, ссылка открыта на другом устройстве).
+      // Показываем страницу "Почта подтверждена", откуда можно войти.
+      return NextResponse.redirect(new URL("/confirmed", requestUrl.origin));
     }
   }
 

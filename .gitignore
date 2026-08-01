@@ -58,3 +58,4 @@ node_modules/
 .worktrees/
 .security-key
 logs/security/
+.env*
