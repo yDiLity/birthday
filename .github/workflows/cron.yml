@@ -1,0 +1,52 @@
+name: Birthday Notifications
+on:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  send-notifications:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Check environment variables
+        run: |
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ]; then
+            echo "Error: NEXT_PUBLIC_SUPABASE_URL is not set"
+            exit 1
+          fi
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Error: SUPABASE_SERVICE_ROLE_KEY is not set"
+            exit 1
+          fi
+
+      - name: Send notification request
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        run: |
+          TRIGGER_TYPE="${{ github.event_name }}"
+          echo "Trigger type: $TRIGGER_TYPE"
+          
+          # Form URL based on trigger type
+          if [ "$TRIGGER_TYPE" = "workflow_dispatch" ]; then
+            echo "Manual trigger detected - sending notifications if there are birthdays today"
+            API_URL='https://digital-birthday-reminder.vercel.app/api/send-notifications?force=true'
+          else
+            echo "Scheduled trigger detected - running normal check"
+            API_URL='https://digital-birthday-reminder.vercel.app/api/send-notifications'
+          fi
+          
+          echo "Using API URL: $API_URL"
+          
+          # Send request with authentication headers
+          RESPONSE=$(curl -L -X POST "$API_URL" \
+          -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+          -H "x-supabase-url: $NEXT_PUBLIC_SUPABASE_URL" \
+          -w "\nHTTP_STATUS:%{http_code}" \
+          -s)
+          
+          echo "Full response: $RESPONSE"

@@ -1,0 +1,305 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Aurora Design System — Light Mode */
+    --background: 0 0% 98%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 6% 10%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 239 84% 67%;
+    --radius: 0.75rem;
+
+    /* Chart Colors — Aurora Gradient */
+    --chart-1: 239 84% 67%;
+    --chart-2: 330 80% 60%;
+    --chart-3: 160 84% 39%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 270 76% 53%;
+
+    /* Aurora accents */
+    --aurora-1: 239 84% 67%;
+    --aurora-2: 330 80% 60%;
+    --aurora-3: 270 76% 53%;
+
+    /* Chart utilities */
+    --chart-axis-color: #71717a;
+    --chart-grid-color: #e4e4e7;
+    --tooltip-bg: #ffffff;
+    --tooltip-color: #09090b;
+    --tooltip-border: #e4e4e7;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 7%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 7%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 239 84% 74%;
+    --primary-foreground: 240 10% 3.9%;
+    --secondary: 240 4% 16%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 4% 16%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 4% 16%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 63% 61%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
+    --ring: 239 84% 74%;
+
+    /* Chart Colors — Dark Aurora */
+    --chart-1: 239 84% 74%;
+    --chart-2: 330 80% 65%;
+    --chart-3: 160 60% 50%;
+    --chart-4: 38 92% 55%;
+    --chart-5: 270 76% 65%;
+
+    /* Aurora accents dark */
+    --aurora-1: 239 84% 74%;
+    --aurora-2: 330 80% 65%;
+    --aurora-3: 270 76% 65%;
+
+    /* Chart utilities dark */
+    --chart-axis-color: #a1a1aa;
+    --chart-grid-color: #27272a;
+    --tooltip-bg: #18181b;
+    --tooltip-color: #fafafa;
+    --tooltip-border: #27272a;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -ms-text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 16px !important;
+    zoom: 1 !important;
+    -ms-content-zooming: none;
+  }
+
+  /* Typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  h1 {
+    @apply text-3xl md:text-4xl;
+    letter-spacing: -0.03em;
+  }
+
+  h2 {
+    @apply text-2xl md:text-3xl;
+    letter-spacing: -0.02em;
+  }
+
+  h3 {
+    @apply text-xl md:text-2xl;
+    letter-spacing: -0.015em;
+  }
+
+  p {
+    @apply leading-relaxed;
+  }
+}
+
+/* ============================================
+   Aurora Design Utilities
+   ============================================ */
+
+/* Glass Card */
+@layer components {
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.05),
+      0 1px 2px rgba(0, 0, 0, 0.05),
+      0 4px 16px rgba(0, 0, 0, 0.04);
+  }
+
+  .dark .glass-card {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.03),
+      0 1px 2px rgba(0, 0, 0, 0.2),
+      0 4px 16px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Gradient Text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--aurora-1)),
+      hsl(var(--aurora-2))
+    );
+  }
+
+  /* Gradient Background */
+  .gradient-bg {
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--aurora-1)),
+      hsl(var(--aurora-2)),
+      hsl(var(--aurora-3))
+    );
+  }
+
+  /* Gradient Border */
+  .gradient-border {
+    position: relative;
+  }
+  .gradient-border::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--aurora-1)),
+      hsl(var(--aurora-2)),
+      hsl(var(--aurora-3)),
+      transparent
+    );
+    opacity: 0.5;
+  }
+
+  /* Stat Card Icon Container */
+  .stat-icon {
+    @apply flex items-center justify-center rounded-lg p-2;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--aurora-1) / 0.1),
+      hsl(var(--aurora-2) / 0.1)
+    );
+  }
+  .stat-icon svg {
+    @apply h-4 w-4;
+    color: hsl(var(--aurora-1));
+  }
+  .dark .stat-icon svg {
+    color: hsl(var(--aurora-1));
+  }
+
+  /* Auth page background */
+  .auth-bg {
+    @apply min-h-screen;
+    background:
+      radial-gradient(ellipse at 20% 50%, hsl(var(--aurora-1) / 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, hsl(var(--aurora-2) / 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, hsl(var(--aurora-3) / 0.05) 0%, transparent 50%),
+      hsl(var(--background));
+  }
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 hsl(var(--aurora-1) / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px hsl(var(--aurora-1) / 0.15);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+.animate-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Staggered animation delays for cards */
+.stagger-1 { animation-delay: 0.05s; animation-fill-mode: backwards; }
+.stagger-2 { animation-delay: 0.1s; animation-fill-mode: backwards; }
+.stagger-3 { animation-delay: 0.15s; animation-fill-mode: backwards; }
+.stagger-4 { animation-delay: 0.2s; animation-fill-mode: backwards; }

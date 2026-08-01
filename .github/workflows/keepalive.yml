@@ -1,0 +1,25 @@
+name: Keepalive Workflow
+
+on:
+  schedule:
+    - cron: '0 0 1 * *' # Раз в месяц (1-го числа каждого месяца)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create keepalive commit
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Создаем пустой коммит для продления активности репозитория
+          git commit --allow-empty -m "chore: keepalive dummy commit"
+          git push origin main
