@@ -10,9 +10,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  buildSeedRows,
   CONGRATULATIONS,
   CONGRATULATIONS_COUNT,
-  pickCongratulationIndex,
 } from "@/lib/congratulations";
 import { Check, Copy, PartyPopper, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -40,28 +40,69 @@ export function CongratulationDialog({
     setLoading(true);
     setCopied(false);
     try {
-      const { data, error } = await supabase
+      let { data: rows, error: rowsError } = await supabase
+        .from("congratulations")
+        .select("id, text")
+        .eq("user_id", userId);
+
+      if (rowsError) {
+        throw rowsError;
+      }
+
+      if (!rows || rows.length === 0) {
+        const { error: seedError } = await supabase
+          .from("congratulations")
+          .upsert(buildSeedRows(userId), {
+            onConflict: "user_id,text",
+          });
+
+        if (seedError) {
+          throw seedError;
+        }
+
+        const seeded = await supabase
+          .from("congratulations")
+          .select("id, text")
+          .eq("user_id", userId);
+        rows = seeded.data;
+      }
+
+      const { data: usage, error: usageError } = await supabase
         .from("congratulations_usage")
-        .select("used_indexes")
+        .select("used_ids")
         .eq("user_id", userId)
         .maybeSingle();
 
-      if (error && error.code !== "PGRST116") {
-        throw error;
+      if (usageError && usageError.code !== "PGRST116") {
+        throw usageError;
       }
 
-      const used = data?.used_indexes ?? [];
-      const index = pickCongratulationIndex(used);
+      const used = usage?.used_ids ?? [];
+      const usedSet = new Set(used);
+      const available = (rows ?? []).filter((row) => !usedSet.has(row.id));
 
-      const nextUsed =
-        used.length >= CONGRATULATIONS_COUNT - 1 ? [index] : [...used, index];
+      let pick: { id: string; text: string } | undefined;
+      let nextUsed: string[];
+
+      if (available.length === 0) {
+        const all = rows ?? [];
+        pick = all[Math.floor(Math.random() * all.length)];
+        nextUsed = pick ? [pick.id] : [];
+      } else {
+        pick = available[Math.floor(Math.random() * available.length)];
+        nextUsed = [...used, pick.id];
+      }
+
+      if (!pick) {
+        throw new Error("No congratulations available");
+      }
 
       const { error: upsertError } = await supabase
         .from("congratulations_usage")
         .upsert(
           {
             user_id: userId,
-            used_indexes: nextUsed,
+            used_ids: nextUsed,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "user_id" },
@@ -71,7 +112,7 @@ export function CongratulationDialog({
         throw upsertError;
       }
 
-      setText(CONGRATULATIONS[index]);
+      setText(pick.text);
     } catch (err) {
       console.error("Error fetching congratulation:", err);
       setText(

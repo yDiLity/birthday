@@ -58,6 +58,13 @@ export const CONGRATULATIONS: readonly string[] = congratulations;
 
 export const CONGRATULATIONS_COUNT = congratulations.length;
 
+/** Строки для первичного заполнения пула поздравлений пользователя. */
+export function buildSeedRows(
+  userId: string,
+): Array<{ user_id: string; text: string }> {
+  return congratulations.map((text) => ({ user_id: userId, text }));
+}
+
 /**
  * Возвращает индекс случайного поздравления, исключая уже использованные.
  * Если все поздравления использованы, пул сбрасывается (C4).

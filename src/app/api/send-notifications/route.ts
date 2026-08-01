@@ -1,11 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseServiceRoleKey } from "@/lib/env";
-import {
-  CONGRATULATIONS,
-  CONGRATULATIONS_COUNT,
-  pickCongratulationIndex,
-} from "@/lib/congratulations";
+import { buildSeedRows } from "@/lib/congratulations";
 import { getRateLimit } from "@/lib/rate-limit";
+import type { Database } from "@/types/supabase";
 import { NextResponse } from "next/server";
 
 // Add this line to explicitly set the allowed methods
@@ -77,32 +74,57 @@ function formatBirthdayMessage(
 }
 
 async function getRandomCongratulation(
-  supabase: SupabaseClient<any>,
+  supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<string | null> {
   try {
-    const { data, error } = await supabase
+    let { data: rows } = await supabase
+      .from("congratulations")
+      .select("id, text")
+      .eq("user_id", userId);
+
+    if (!rows || rows.length === 0) {
+      await supabase.from("congratulations").upsert(buildSeedRows(userId), {
+        onConflict: "user_id,text",
+      });
+      ({ data: rows } = await supabase
+        .from("congratulations")
+        .select("id, text")
+        .eq("user_id", userId));
+    }
+
+    const { data: usage } = await supabase
       .from("congratulations_usage")
-      .select("used_indexes")
+      .select("used_ids")
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (error) {
-      console.error("Error fetching congratulations usage:", error);
-      return null;
+    const used: string[] = usage?.used_ids ?? [];
+    const usedSet = new Set(used);
+    const available = (rows ?? []).filter((row) => !usedSet.has(row.id));
+
+    let pick: { id: string; text: string } | undefined;
+    let nextUsed: string[];
+
+    if (available.length === 0) {
+      const all = rows ?? [];
+      pick = all[Math.floor(Math.random() * all.length)];
+      nextUsed = pick ? [pick.id] : [];
+    } else {
+      pick = available[Math.floor(Math.random() * available.length)];
+      nextUsed = [...used, pick.id];
     }
 
-    const used: number[] = data?.used_indexes ?? [];
-    const index = pickCongratulationIndex(used);
-    const nextUsed =
-      used.length >= CONGRATULATIONS_COUNT - 1 ? [index] : [...used, index];
+    if (!pick) {
+      return null;
+    }
 
     const { error: upsertError } = await supabase
       .from("congratulations_usage")
       .upsert(
         {
           user_id: userId,
-          used_indexes: nextUsed,
+          used_ids: nextUsed,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "user_id" },
@@ -113,7 +135,7 @@ async function getRandomCongratulation(
       return null;
     }
 
-    return CONGRATULATIONS[index];
+    return pick.text;
   } catch (err) {
     console.error("Error picking random congratulation:", err);
     return null;
@@ -202,9 +224,9 @@ export async function POST(req: Request) {
       searchParams: Object.fromEntries(url.searchParams.entries()),
     });
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      serviceRoleKey,
+    const supabase = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      serviceRoleKey!,
     );
 
     const { data: telegramSettings, error: settingsError } = await supabase
@@ -260,14 +282,14 @@ export async function POST(req: Request) {
             message = await getRandomCongratulation(supabase, settings.user_id);
             if (!message) {
               message = formatBirthdayMessage(
-                settings.message_template,
+                settings.message_template ?? "",
                 contact,
                 0,
               );
             }
           } else {
             message = formatBirthdayMessage(
-              settings.message_template,
+              settings.message_template ?? "",
               contact,
               0,
             );

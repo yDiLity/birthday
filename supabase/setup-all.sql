@@ -140,7 +140,7 @@ ALTER TABLE telegram_settings ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'GM
 CREATE TABLE IF NOT EXISTS congratulations_usage (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
-  used_indexes INTEGER[] NOT NULL DEFAULT '{}',
+  used_ids UUID[] NOT NULL DEFAULT '{}',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -168,6 +168,44 @@ CREATE POLICY "Users can update their own congratulations usage"
 DROP POLICY IF EXISTS "Users can delete their own congratulations usage" ON congratulations_usage;
 CREATE POLICY "Users can delete their own congratulations usage"
   ON congratulations_usage
+  FOR DELETE
+  USING (user_id = auth.uid());
+
+-- 7b. Таблица congratulations (редактируемый пул поздравлений пользователя)
+CREATE TABLE IF NOT EXISTS congratulations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  text TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT unique_user_congratulation UNIQUE (user_id, text)
+);
+
+CREATE INDEX IF NOT EXISTS idx_congratulations_user ON congratulations(user_id);
+
+ALTER TABLE congratulations ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can only access their own congratulations" ON congratulations;
+CREATE POLICY "Users can only access their own congratulations"
+  ON congratulations
+  FOR SELECT
+  USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can insert their own congratulations" ON congratulations;
+CREATE POLICY "Users can insert their own congratulations"
+  ON congratulations
+  FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can update their own congratulations" ON congratulations;
+CREATE POLICY "Users can update their own congratulations"
+  ON congratulations
+  FOR UPDATE
+  USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can delete their own congratulations" ON congratulations;
+CREATE POLICY "Users can delete their own congratulations"
+  ON congratulations
   FOR DELETE
   USING (user_id = auth.uid());
 

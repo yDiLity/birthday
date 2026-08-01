@@ -14,21 +14,45 @@ export type Database = {
           created_at: string | null;
           id: string;
           updated_at: string | null;
-          used_indexes: number[];
+          used_ids: string[];
           user_id: string;
         };
         Insert: {
           created_at?: string | null;
           id?: string;
           updated_at?: string | null;
-          used_indexes?: number[];
+          used_ids?: string[];
           user_id: string;
         };
         Update: {
           created_at?: string | null;
           id?: string;
           updated_at?: string | null;
-          used_indexes?: number[];
+          used_ids?: string[];
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      congratulations: {
+        Row: {
+          created_at: string | null;
+          id: string;
+          text: string;
+          updated_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string | null;
+          id?: string;
+          text: string;
+          updated_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string | null;
+          id?: string;
+          text?: string;
+          updated_at?: string | null;
           user_id?: string;
         };
         Relationships: [];
