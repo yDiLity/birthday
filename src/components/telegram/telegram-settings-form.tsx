@@ -47,6 +47,7 @@ const formSchema = z.object({
   message_template: z.string().min(1, {
     message: "Message template is required.",
   }),
+  use_random_congratulations: z.boolean().default(false),
   is_active: z.boolean().default(true),
 });
 
@@ -88,6 +89,7 @@ export default function TelegramSettingsForm({
       days_before: settings?.days_before ?? 0,
       message_template:
         settings?.message_template || "Today is {{name}}'s birthday!",
+      use_random_congratulations: settings?.use_random_congratulations ?? false,
       is_active: settings?.is_active ?? true,
     },
   });
@@ -102,6 +104,7 @@ export default function TelegramSettingsForm({
         notification_time: string;
         days_before: number;
         message_template: string;
+        use_random_congratulations: boolean;
         is_active: boolean;
         updated_at: string;
         timezone?: string; // Make timezone optional
@@ -114,6 +117,7 @@ export default function TelegramSettingsForm({
         notification_time: values.notification_time + ":00", // Add seconds
         days_before: values.days_before,
         message_template: values.message_template,
+        use_random_congratulations: values.use_random_congratulations,
         is_active: values.is_active,
         updated_at: new Date().toISOString(),
       };
@@ -492,6 +496,30 @@ export default function TelegramSettingsForm({
                     </Button>
                   </div>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="use_random_congratulations"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 mt-6">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
+                      Случайные поздравления
+                    </FormLabel>
+                    <FormDescription>
+                      Отправлять случайное поздравление из базы 650 уникальных
+                      текстов вместо шаблона выше.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />

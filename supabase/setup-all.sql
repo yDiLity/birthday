@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS telegram_settings (
   notification_time TIME DEFAULT '09:00:00',
   days_before INTEGER DEFAULT 0,
   message_template TEXT DEFAULT 'Today is {{name}}''s birthday!',
+  use_random_congratulations BOOLEAN NOT NULL DEFAULT false,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

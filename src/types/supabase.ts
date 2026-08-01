@@ -75,6 +75,7 @@ export type Database = {
           notification_time: string | null;
           timezone: string | null;
           updated_at: string | null;
+          use_random_congratulations: boolean | null;
           user_id: string;
         };
         Insert: {
@@ -88,6 +89,7 @@ export type Database = {
           notification_time?: string | null;
           timezone?: string | null;
           updated_at?: string | null;
+          use_random_congratulations?: boolean | null;
           user_id: string;
         };
         Update: {
@@ -101,6 +103,7 @@ export type Database = {
           notification_time?: string | null;
           timezone?: string | null;
           updated_at?: string | null;
+          use_random_congratulations?: boolean | null;
           user_id?: string;
         };
         Relationships: [];

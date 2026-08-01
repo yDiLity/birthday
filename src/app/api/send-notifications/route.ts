@@ -1,5 +1,10 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseServiceRoleKey } from "@/lib/env";
+import {
+  CONGRATULATIONS,
+  CONGRATULATIONS_COUNT,
+  pickCongratulationIndex,
+} from "@/lib/congratulations";
 import { getRateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 
@@ -22,6 +27,7 @@ interface TelegramSettings {
   bot_token: string | null;
   message_template: string;
   days_before: number;
+  use_random_congratulations: boolean;
 }
 
 async function sendTelegramMessage(
@@ -68,6 +74,50 @@ function formatBirthdayMessage(
   message = message.replace(/{{days}}/g, daysUntilBirthday.toString());
   message = message.replace(/{{notes}}/g, contact.notes || "");
   return message;
+}
+
+async function getRandomCongratulation(
+  supabase: SupabaseClient<any>,
+  userId: string,
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from("congratulations_usage")
+      .select("used_indexes")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error fetching congratulations usage:", error);
+      return null;
+    }
+
+    const used: number[] = data?.used_indexes ?? [];
+    const index = pickCongratulationIndex(used);
+    const nextUsed =
+      used.length >= CONGRATULATIONS_COUNT - 1 ? [index] : [...used, index];
+
+    const { error: upsertError } = await supabase
+      .from("congratulations_usage")
+      .upsert(
+        {
+          user_id: userId,
+          used_indexes: nextUsed,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+
+    if (upsertError) {
+      console.error("Error saving congratulations usage:", upsertError);
+      return null;
+    }
+
+    return CONGRATULATIONS[index];
+  } catch (err) {
+    console.error("Error picking random congratulation:", err);
+    return null;
+  }
 }
 
 function isBirthdayToday(birthDateStr: string): boolean {
@@ -204,11 +254,24 @@ export async function POST(req: Request) {
           console.log("Birthday found for:", contact.name);
           birthdaysFound = true;
 
-          const message = formatBirthdayMessage(
-            settings.message_template,
-            contact,
-            0,
-          );
+          let message: string | null = null;
+
+          if (settings.use_random_congratulations) {
+            message = await getRandomCongratulation(supabase, settings.user_id);
+            if (!message) {
+              message = formatBirthdayMessage(
+                settings.message_template,
+                contact,
+                0,
+              );
+            }
+          } else {
+            message = formatBirthdayMessage(
+              settings.message_template,
+              contact,
+              0,
+            );
+          }
 
           const result = await sendTelegramMessage(
             settings.bot_token,
