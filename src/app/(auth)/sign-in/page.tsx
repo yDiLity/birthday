@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 interface LoginProps {
@@ -53,12 +52,6 @@ export default async function SignInPage({ searchParams }: LoginProps) {
               Добро пожаловать! Войдите в свой аккаунт
             </p>
           </div>
-
-          <div className="mt-6">
-            <OAuthButtons />
-          </div>
-
-          <hr className="my-4 border-dashed border-border" />
 
           <div className="space-y-5">
             <div className="space-y-2">
