@@ -1,6 +1,5 @@
-import { createColumns } from "@/components/contacts/columns";
 import ContactImport from "@/components/contacts/contact-import";
-import { DataTable } from "@/components/contacts/data-table";
+import { ContactsDataTable } from "@/components/contacts/contacts-data-table";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Tables } from "@/types/supabase";
@@ -50,9 +49,9 @@ export default async function ContactsPage() {
             <TabsTrigger value="import">Импорт контактов</TabsTrigger>
           </TabsList>
           <TabsContent value="list">
-            <DataTable
-              columns={createColumns(user.id)}
-              data={contacts as Tables<"contacts">[]}
+            <ContactsDataTable
+              userId={user.id}
+              contacts={contacts as Tables<"contacts">[]}
             />
           </TabsContent>
           <TabsContent value="import">
