@@ -11,7 +11,7 @@ import {
   CartesianGrid,
   Cell,
 } from "recharts";
-import { Tables } from "@/types/supabase";
+import type { Tables } from "@/types/supabase";
 import { useEffect, useState } from "react";
 
 // Цвета для графика
@@ -65,11 +65,11 @@ export function Overview({ contacts = [] }: OverviewProps) {
     const monthCounts = Array(12).fill(0);
 
     // Подсчитываем количество дней рождения в каждом месяце
-    contacts.forEach((contact) => {
+    for (const contact of contacts) {
       const birthDate = new Date(contact.birth_date);
       const month = birthDate.getMonth();
       monthCounts[month]++;
-    });
+    }
 
     // Формируем данные для графика
     const data = monthNames.map((name, index) => ({
@@ -142,10 +142,7 @@ export function Overview({ contacts = [] }: OverviewProps) {
           />
           <Bar dataKey="total" name="Дней рождения/месяц" radius={[6, 6, 0, 0]}>
             {chartData.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={COLORS[index % COLORS.length]}
-              />
+              <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
             ))}
           </Bar>
         </BarChart>

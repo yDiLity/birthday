@@ -87,6 +87,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      notification_log: {
+        Row: {
+          contact_id: string;
+          created_at: string | null;
+          id: string;
+          sent_date: string;
+          user_id: string;
+        };
+        Insert: {
+          contact_id: string;
+          created_at?: string | null;
+          id?: string;
+          sent_date: string;
+          user_id: string;
+        };
+        Update: {
+          contact_id?: string;
+          created_at?: string | null;
+          id?: string;
+          sent_date?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       telegram_settings: {
         Row: {
           bot_token: string | null;
@@ -182,7 +206,23 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      get_my_telegram_settings: {
+        Args: Record<string, never>;
+        Returns: {
+          bot_token: string | null;
+          chat_id: string;
+          created_at: string | null;
+          days_before: number | null;
+          id: string;
+          is_active: boolean | null;
+          message_template: string | null;
+          notification_time: string | null;
+          timezone: string | null;
+          updated_at: string | null;
+          use_random_congratulations: boolean | null;
+          user_id: string;
+        };
+      };
     };
     Enums: {
       [_ in never]: never;

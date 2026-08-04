@@ -12,6 +12,11 @@ interface ContactImportProps {
   userId: string;
 }
 
+interface ParsedContact {
+  name: string;
+  birth_date: string;
+}
+
 export default function ContactImport({ userId }: ContactImportProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -25,162 +30,164 @@ export default function ContactImport({ userId }: ContactImportProps) {
   const supabase = createClient();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
       setResult(null);
     }
   };
 
-  const parseExcel = async (file: File): Promise<any[]> => {
-    return new Promise<any[]>(async (resolve, reject) => {
-      try {
-        const result: { name: string; birth_date: string }[] = [];
-        const workbook = new Workbook();
+  const parseExcel = async (file: File): Promise<ParsedContact[]> => {
+    const result: ParsedContact[] = [];
+    const workbook = new Workbook();
 
-        if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
-          // Handle Excel file
-          const buffer = await file.arrayBuffer();
-          await workbook.xlsx.load(buffer);
+    if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+      // Handle Excel file
+      const buffer = await file.arrayBuffer();
+      await workbook.xlsx.load(buffer);
 
-          // Get first worksheet
-          const worksheet = workbook.worksheets[0];
+      // Get first worksheet
+      const worksheet = workbook.worksheets[0];
 
-          if (!worksheet) {
-            throw new Error("No worksheet found");
+      if (!worksheet) {
+        throw new Error("No worksheet found");
+      }
+
+      // Determine if first row is header
+      const firstRow = worksheet.getRow(1);
+      const hasHeader =
+        firstRow.values &&
+        Array.isArray(firstRow.values) &&
+        firstRow.values.some(
+          (cell) =>
+            cell &&
+            typeof cell === "string" &&
+            (cell.toLowerCase().includes("surname") ||
+              cell.toLowerCase().includes("name") ||
+              cell.toLowerCase().includes("birth")),
+        );
+
+      const startRow = hasHeader ? 2 : 1;
+
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber < startRow) return;
+
+        const values = row.values;
+        if (!values || values.length < 3) return;
+
+        // Handle the new name format: Lastname Firstname Patronymic
+        const fullName = String(values[1] || "").trim();
+        let surname = "";
+        let firstName = "";
+
+        if (fullName) {
+          const nameParts = fullName.split(" ");
+          if (nameParts.length >= 1) {
+            surname = nameParts[0]; // First part is surname
           }
-
-          // Determine if first row is header
-          const firstRow = worksheet.getRow(1);
-          const hasHeader =
-            firstRow.values &&
-            Array.isArray(firstRow.values) &&
-            firstRow.values.some(
-              (cell) =>
-                cell &&
-                typeof cell === "string" &&
-                (cell.toLowerCase().includes("surname") ||
-                  cell.toLowerCase().includes("name") ||
-                  cell.toLowerCase().includes("birth")),
-            );
-
-          const startRow = hasHeader ? 2 : 1;
-
-          worksheet.eachRow((row, rowNumber) => {
-            if (rowNumber < startRow) return;
-
-            const values = row.values as any[];
-            if (!values || values.length < 3) return;
-
-            // Handle the new name format: Lastname Firstname Patronymic
-            const fullName = String(values[1] || "").trim();
-            let surname = "";
-            let firstName = "";
-
-            if (fullName) {
-              const nameParts = fullName.split(" ");
-              if (nameParts.length >= 1) {
-                surname = nameParts[0]; // First part is surname
-              }
-              if (nameParts.length >= 2) {
-                // Combine remaining parts as first name (including patronymic)
-                firstName = nameParts.slice(1).join(" ");
-              }
-            }
-
-            let birthDate: Date | null = null;
-
-            const birthDateValue = values[2];
-            if (birthDateValue instanceof Date) {
-              birthDate = birthDateValue;
-            } else if (
-              typeof birthDateValue === "string" &&
-              birthDateValue.includes(".")
-            ) {
-              const [day, month, year] = birthDateValue.split(".").map(Number);
-              if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                birthDate = new Date(year, month - 1, day, 12);
-              }
-            }
-
-            if (
-              surname &&
-              firstName &&
-              birthDate &&
-              !isNaN(birthDate.getTime())
-            ) {
-              // Store in format: Lastname Firstname Patronymic (as expected by the display functions)
-              result.push({
-                name: `${surname} ${firstName}`,
-                birth_date: birthDate.toISOString().split("T")[0],
-              });
-            }
-          });
-        } else {
-          // Handle CSV file
-          const text = await file.text();
-          const lines = text.split("\n");
-
-          const hasHeader =
-            lines[0].toLowerCase().includes("surname") ||
-            lines[0].toLowerCase().includes("name") ||
-            lines[0].toLowerCase().includes("birth");
-
-          const startRow = hasHeader ? 1 : 0;
-
-          for (let i = startRow; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-
-            const columns = line.split(",");
-            if (columns.length < 3) continue;
-
-            // Handle the new name format: Lastname Firstname Patronymic
-            const fullName = columns[0].trim();
-            let surname = "";
-            let firstName = "";
-
-            if (fullName) {
-              const nameParts = fullName.split(" ");
-              if (nameParts.length >= 1) {
-                surname = nameParts[0]; // First part is surname
-              }
-              if (nameParts.length >= 2) {
-                // Combine remaining parts as first name (including patronymic)
-                firstName = nameParts.slice(1).join(" ");
-              }
-            }
-
-            const birthDateStr = columns[1].trim();
-
-            let birthDate: Date | null = null;
-            if (birthDateStr.includes(".")) {
-              const [day, month, year] = birthDateStr.split(".").map(Number);
-              if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                birthDate = new Date(year, month - 1, day, 12);
-              }
-            }
-
-            if (
-              surname &&
-              firstName &&
-              birthDate &&
-              !isNaN(birthDate.getTime())
-            ) {
-              // Store in format: Lastname Firstname Patronymic (as expected by the display functions)
-              result.push({
-                name: `${surname} ${firstName}`,
-                birth_date: birthDate.toISOString().split("T")[0],
-              });
-            }
+          if (nameParts.length >= 2) {
+            // Combine remaining parts as first name (including patronymic)
+            firstName = nameParts.slice(1).join(" ");
           }
         }
 
-        resolve(result);
-      } catch (error) {
-        console.error("Error parsing file:", error);
-        reject(error);
+        let birthDate: Date | null = null;
+
+        const birthDateValue = values[2];
+        if (birthDateValue instanceof Date) {
+          birthDate = birthDateValue;
+        } else if (
+          typeof birthDateValue === "string" &&
+          birthDateValue.includes(".")
+        ) {
+          const [day, month, year] = birthDateValue.split(".").map(Number);
+          if (
+            !Number.isNaN(day) &&
+            !Number.isNaN(month) &&
+            !Number.isNaN(year)
+          ) {
+            birthDate = new Date(year, month - 1, day, 12);
+          }
+        }
+
+        if (
+          surname &&
+          firstName &&
+          birthDate &&
+          !Number.isNaN(birthDate.getTime())
+        ) {
+          // Store in format: Lastname Firstname Patronymic (as expected by the display functions)
+          result.push({
+            name: `${surname} ${firstName}`,
+            birth_date: birthDate.toISOString().split("T")[0],
+          });
+        }
+      });
+    } else {
+      // Handle CSV file
+      const text = await file.text();
+      const lines = text.split("\n");
+
+      const hasHeader =
+        lines[0].toLowerCase().includes("surname") ||
+        lines[0].toLowerCase().includes("name") ||
+        lines[0].toLowerCase().includes("birth");
+
+      const startRow = hasHeader ? 1 : 0;
+
+      for (let i = startRow; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const columns = line.split(",");
+        if (columns.length < 3) continue;
+
+        // Handle the new name format: Lastname Firstname Patronymic
+        const fullName = columns[0].trim();
+        let surname = "";
+        let firstName = "";
+
+        if (fullName) {
+          const nameParts = fullName.split(" ");
+          if (nameParts.length >= 1) {
+            surname = nameParts[0]; // First part is surname
+          }
+          if (nameParts.length >= 2) {
+            // Combine remaining parts as first name (including patronymic)
+            firstName = nameParts.slice(1).join(" ");
+          }
+        }
+
+        const birthDateStr = columns[1].trim();
+
+        let birthDate: Date | null = null;
+        if (birthDateStr.includes(".")) {
+          const [day, month, year] = birthDateStr.split(".").map(Number);
+          if (
+            !Number.isNaN(day) &&
+            !Number.isNaN(month) &&
+            !Number.isNaN(year)
+          ) {
+            birthDate = new Date(year, month - 1, day, 12);
+          }
+        }
+
+        if (
+          surname &&
+          firstName &&
+          birthDate &&
+          !Number.isNaN(birthDate.getTime())
+        ) {
+          // Store in format: Lastname Firstname Patronymic (as expected by the display functions)
+          result.push({
+            name: `${surname} ${firstName}`,
+            birth_date: birthDate.toISOString().split("T")[0],
+          });
+        }
       }
-    });
+    }
+
+    return result;
   };
 
   const handleImport = async () => {

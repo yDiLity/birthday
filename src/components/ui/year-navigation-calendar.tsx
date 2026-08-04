@@ -87,6 +87,7 @@ function YearNavigationCalendar({
     <div className="flex flex-col select-none overflow-x-hidden">
       <div className="flex justify-between items-center mb-1 px-2 pt-2">
         <button
+          type="button"
           onClick={handlePreviousYear}
           className={cn(
             buttonVariants({ variant: "outline" }),
@@ -100,6 +101,7 @@ function YearNavigationCalendar({
           {currentDate.getFullYear()}
         </div>
         <button
+          type="button"
           onClick={handleNextYear}
           className={cn(
             buttonVariants({ variant: "outline" }),

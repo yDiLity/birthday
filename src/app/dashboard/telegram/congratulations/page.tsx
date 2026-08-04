@@ -3,7 +3,6 @@ import Link from "next/link";
 import { createClient } from "../../../../../supabase/server";
 import { createAdminClient } from "../../../../../supabase/admin";
 import { buildSeedRows } from "@/lib/congratulations";
-import DashboardNavbar from "@/components/dashboard-navbar";
 import CongratulationsManager from "@/components/telegram/congratulations-manager";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -43,29 +42,26 @@ export default async function CongratulationsPage() {
     .order("created_at", { ascending: true });
 
   return (
-    <>
-      <DashboardNavbar />
-      <main className="p-6">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center gap-4 mb-6">
-            <Button asChild variant="outline" size="icon">
-              <Link href="/dashboard/telegram" aria-label="Назад к Telegram">
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">Поздравления</h1>
-              <p className="text-muted-foreground text-sm">
-                Список всех возможных сообщений. Можно редактировать или
-                удалять — они используются в диалоге поздравлений и в Telegram
-                (если включены случайные).
-              </p>
-            </div>
+    <main className="p-6">
+      <div className="max-w-3xl mx-auto">
+        <div className="flex items-center gap-4 mb-6">
+          <Button asChild variant="outline" size="icon">
+            <Link href="/dashboard/telegram" aria-label="Назад к Telegram">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Поздравления</h1>
+            <p className="text-muted-foreground text-sm">
+              Список всех возможных сообщений. Можно редактировать или удалять —
+              они используются в диалоге поздравлений и в Telegram (если
+              включены случайные).
+            </p>
           </div>
-
-          <CongratulationsManager userId={user.id} initialRows={rows ?? []} />
         </div>
-      </main>
-    </>
+
+        <CongratulationsManager userId={user.id} initialRows={rows ?? []} />
+      </div>
+    </main>
   );
 }

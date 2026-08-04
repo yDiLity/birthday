@@ -1,7 +1,7 @@
 name: Birthday Notifications
 on:
   schedule:
-    - cron: '0 5 * * *'
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -33,10 +33,10 @@ jobs:
           # Form URL based on trigger type
           if [ "$TRIGGER_TYPE" = "workflow_dispatch" ]; then
             echo "Manual trigger detected - sending notifications if there are birthdays today"
-            API_URL='https://digital-birthday-reminder.vercel.app/api/send-notifications?force=true'
+            API_URL='https://birthday-reminder-kappa-umber.vercel.app/api/send-notifications?force=true'
           else
             echo "Scheduled trigger detected - running normal check"
-            API_URL='https://digital-birthday-reminder.vercel.app/api/send-notifications'
+            API_URL='https://birthday-reminder-kappa-umber.vercel.app/api/send-notifications'
           fi
           
           echo "Using API URL: $API_URL"

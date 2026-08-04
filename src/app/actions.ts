@@ -39,7 +39,7 @@ export const signUpAction = async (formData: FormData) => {
   console.log("After signUp", error);
 
   if (error) {
-    console.error(error.code + " " + error.message);
+    console.error(`${error.code} ${error.message}`);
     return encodedRedirect("error", "/sign-up", error.message);
   }
 
@@ -99,7 +99,7 @@ export const forgotPasswordAction = async (formData: FormData) => {
   }
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/callback?redirect_to=/protected/reset-password`,
+    redirectTo: `${origin}/auth/callback?redirect_to=/dashboard/reset-password`,
   });
 
   if (error) {
@@ -111,7 +111,7 @@ export const forgotPasswordAction = async (formData: FormData) => {
     );
   }
 
-  if (callbackUrl) {
+  if (callbackUrl && isSafeRedirectPath(callbackUrl)) {
     return redirect(callbackUrl);
   }
 
@@ -122,6 +122,14 @@ export const forgotPasswordAction = async (formData: FormData) => {
   );
 };
 
+/** Разрешает только относительные пути (защита от open redirect). */
+function isSafeRedirectPath(path: string | null | undefined): path is string {
+  if (!path) return false;
+  return (
+    path.startsWith("/") && !path.startsWith("//") && !path.includes("://")
+  );
+}
+
 export const resetPasswordAction = async (formData: FormData) => {
   const supabase = await createClient();
 
@@ -129,15 +137,15 @@ export const resetPasswordAction = async (formData: FormData) => {
   const confirmPassword = formData.get("confirmPassword") as string;
 
   if (!password || !confirmPassword) {
-    encodedRedirect(
+    return encodedRedirect(
       "error",
-      "/protected/reset-password",
+      "/dashboard/reset-password",
       "Password and confirm password are required",
     );
   }
 
   if (password !== confirmPassword) {
-    encodedRedirect(
+    return encodedRedirect(
       "error",
       "/dashboard/reset-password",
       "Passwords do not match",
@@ -149,14 +157,18 @@ export const resetPasswordAction = async (formData: FormData) => {
   });
 
   if (error) {
-    encodedRedirect(
+    return encodedRedirect(
       "error",
       "/dashboard/reset-password",
       "Password update failed",
     );
   }
 
-  encodedRedirect("success", "/protected/reset-password", "Password updated");
+  return encodedRedirect(
+    "success",
+    "/dashboard/reset-password",
+    "Password updated",
+  );
 };
 
 export const signOutAction = async () => {

@@ -1,4 +1,4 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import {
   Card,
   CardContent,
@@ -31,10 +31,10 @@ export default async function DashboardPage() {
     .select("*")
     .order("name");
 
-  // Fetch telegram settings
+  // Fetch telegram settings (без bot_token — он скрыт на клиенте)
   const { data: telegramSettings } = await supabase
     .from("telegram_settings")
-    .select("*")
+    .select("id, is_active, notification_time")
     .eq("user_id", user?.id || "")
     .maybeSingle();
 
@@ -43,31 +43,31 @@ export default async function DashboardPage() {
 
   const recentContacts = contacts
     ? contacts.filter((contact) => {
-      const createdDate = new Date(
-        contact.created_at || contact.updated_at || new Date(),
-      );
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      return createdDate >= thirtyDaysAgo;
-    }).length
+        const createdDate = new Date(
+          contact.created_at || contact.updated_at || new Date(),
+        );
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        return createdDate >= thirtyDaysAgo;
+      }).length
     : 0;
 
   const upcomingBirthdays = contacts
     ? contacts.filter((contact) => {
-      const birthDate = new Date(contact.birth_date);
-      const today = new Date();
-      const nextBirthday = new Date(
-        today.getFullYear(),
-        birthDate.getMonth(),
-        birthDate.getDate(),
-      );
-      if (nextBirthday < today) {
-        nextBirthday.setFullYear(today.getFullYear() + 1);
-      }
-      const diffTime = nextBirthday.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays <= 30;
-    }).length
+        const birthDate = new Date(contact.birth_date);
+        const today = new Date();
+        const nextBirthday = new Date(
+          today.getFullYear(),
+          birthDate.getMonth(),
+          birthDate.getDate(),
+        );
+        if (nextBirthday < today) {
+          nextBirthday.setFullYear(today.getFullYear() + 1);
+        }
+        const diffTime = nextBirthday.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 30;
+      }).length
     : 0;
 
   return (
@@ -130,9 +130,19 @@ export default async function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">Активны</div>
+              <div className="text-2xl font-bold">
+                {telegramSettings
+                  ? telegramSettings.is_active
+                    ? "Активны"
+                    : "Выключены"
+                  : "Не настроены"}
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Telegram бот подключен
+                {telegramSettings
+                  ? telegramSettings.is_active
+                    ? "Telegram-уведомления включены"
+                    : "Уведомления приостановлены"
+                  : "Настройте интеграцию с Telegram"}
               </p>
             </CardContent>
           </Card>
@@ -157,9 +167,7 @@ export default async function DashboardPage() {
           <Card className="col-span-4 glass-card animate-fade-in">
             <CardHeader>
               <CardTitle>Статистика дней рождения</CardTitle>
-              <CardDescription>
-                Распределение по месяцам
-              </CardDescription>
+              <CardDescription>Распределение по месяцам</CardDescription>
             </CardHeader>
             <CardContent className="pl-2">
               <Overview contacts={contacts || []} />

@@ -48,8 +48,7 @@ export default function DashboardNavigation() {
             size="sm"
             className={cn(
               "gap-2 text-muted-foreground hover:text-foreground transition-colors",
-              link.active &&
-              "bg-accent text-foreground shadow-sm",
+              link.active && "bg-accent text-foreground shadow-sm",
             )}
           >
             <link.icon className="h-4 w-4" />

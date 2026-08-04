@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../supabase/server";
 
+/** Разрешает только относительные пути (защита от open redirect). */
+function isSafeRedirectPath(path: string | null | undefined): path is string {
+  if (!path) return false;
+  return (
+    path.startsWith("/") && !path.startsWith("//") && !path.includes("://")
+  );
+}
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const next = requestUrl.searchParams.get("next") || "/dashboard";
+  const next =
+    requestUrl.searchParams.get("next") ||
+    requestUrl.searchParams.get("redirect_to") ||
+    "/dashboard";
 
   if (code) {
     const supabase = await createClient();
@@ -20,5 +31,7 @@ export async function GET(request: Request) {
   }
 
   // URL to redirect to after sign in process completes
-  return NextResponse.redirect(new URL(next, requestUrl.origin));
+  return NextResponse.redirect(
+    new URL(isSafeRedirectPath(next) ? next : "/dashboard", requestUrl.origin),
+  );
 }

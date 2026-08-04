@@ -1,6 +1,6 @@
 "use client";
 
-import { Tables } from "@/types/supabase";
+import type { Tables } from "@/types/supabase";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -82,14 +82,16 @@ export function NextBirthday({
 
     if (lastDigit === 1 && lastTwoDigits !== 11) {
       return `Через ${days} день`;
-    } else if (
+    }
+
+    if (
       [2, 3, 4].includes(lastDigit) &&
       ![12, 13, 14].includes(lastTwoDigits)
     ) {
       return `Через ${days} дня`;
-    } else {
-      return `Через ${days} дней`;
     }
+
+    return `Через ${days} дней`;
   };
 
   // Функция для получения цвета бейджа в зависимости от дней

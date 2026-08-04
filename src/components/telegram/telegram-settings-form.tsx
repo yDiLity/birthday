@@ -15,10 +15,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tables } from "@/types/supabase";
+import type { Tables } from "@/types/supabase";
 import { createClient } from "../../../supabase/client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { InfoIcon } from "lucide-react";
 import {
@@ -33,6 +33,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  detectChatsAction,
+  getCentralBotInfoAction,
+  sendTelegramMessageAction,
+} from "@/app/telegram-actions";
+import type { DetectedChat, TelegramBotInfo } from "@/lib/telegram";
 
 const formSchema = z.object({
   chat_id: z.string().min(1, {
@@ -69,6 +75,24 @@ export default function TelegramSettingsForm({
   } | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMessage, setPreviewMessage] = useState("");
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [detectedChats, setDetectedChats] = useState<DetectedChat[] | null>(
+    null,
+  );
+  const [detectStatus, setDetectStatus] = useState<{
+    success?: boolean;
+    message?: string;
+  } | null>(null);
+  const [centralBot, setCentralBot] = useState<TelegramBotInfo | null>(null);
+
+  useEffect(() => {
+    getCentralBotInfoAction().then(setCentralBot);
+  }, []);
+
+  // Токен из БД возвращается замаскированным ("12345678…"), чтобы не
+  // показывать его в браузере. Маскированное значение сохраняется без изменений.
+  const isMaskedBotToken = (token: string | null | undefined) =>
+    Boolean(token) && token!.endsWith("…");
 
   // Format time from database (e.g., "09:00:00" to "09:00")
   const formatTimeForInput = (timeString: string | undefined) => {
@@ -100,7 +124,7 @@ export default function TelegramSettingsForm({
       // Define the type for updateData
       type UpdateData = {
         chat_id: string;
-        bot_token: string | null;
+        bot_token?: string | null;
         notification_time: string;
         days_before: number;
         message_template: string;
@@ -114,7 +138,7 @@ export default function TelegramSettingsForm({
       const updateData: UpdateData = {
         chat_id: values.chat_id,
         bot_token: values.bot_token || null,
-        notification_time: values.notification_time + ":00", // Add seconds
+        notification_time: `${values.notification_time}:00`, // Add seconds
         days_before: values.days_before,
         message_template: values.message_template,
         use_random_congratulations: values.use_random_congratulations,
@@ -126,10 +150,16 @@ export default function TelegramSettingsForm({
       updateData.timezone = values.timezone;
 
       if (settings) {
-        // Update existing settings
+        // Update existing settings.
+        // Если токен не менялся (пустое поле или маска), сохраняем текущий.
+        const payload: UpdateData = { ...updateData };
+        if (!values.bot_token || isMaskedBotToken(values.bot_token)) {
+          payload.bot_token = undefined;
+        }
+
         const { error } = await supabase
           .from("telegram_settings")
-          .update(updateData)
+          .update(payload)
           .eq("id", settings.id);
 
         if (error) throw error;
@@ -159,51 +189,79 @@ export default function TelegramSettingsForm({
 
   async function testConnection() {
     const values = form.getValues();
-    if (!values.bot_token || !values.chat_id) {
+    if (!values.chat_id) {
       setTestStatus({
         success: false,
-        message: "Bot token and chat ID are required for testing.",
+        message: "Укажите ID чата для проверки.",
       });
       return;
     }
 
-    setTestStatus({ message: "Testing connection..." });
+    if (values.bot_token && isMaskedBotToken(values.bot_token)) {
+      setTestStatus({
+        success: false,
+        message:
+          "Введите новый токен бота, чтобы проверить соединение (текущий скрыт).",
+      });
+      return;
+    }
+
+    setTestStatus({ message: "Проверка соединения..." });
 
     try {
-      // Call the Telegram API directly to test the connection
-      const response = await fetch(
-        `https://api.telegram.org/bot${values.bot_token}/sendMessage`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            chat_id: values.chat_id,
-            text: "🎂 Test message from BirthdayBot! Your connection is working.",
-          }),
-        },
+      const result = await sendTelegramMessageAction(
+        values.chat_id,
+        "🎂 Тестовое сообщение от Birthday Bot! Соединение работает.",
+        values.bot_token || null,
       );
 
-      const data = await response.json();
-
-      if (data.ok) {
+      if (result.ok) {
         setTestStatus({
           success: true,
-          message: "Connection successful! Test message sent.",
+          message: "Соединение успешно! Тестовое сообщение отправлено.",
         });
       } else {
         setTestStatus({
           success: false,
-          message: `Error: ${data.description || "Unknown error"}.`,
+          message: `Ошибка: ${result.error || "Неизвестная ошибка"}.`,
         });
       }
     } catch (error) {
       console.error("Error testing Telegram connection:", error);
       setTestStatus({
         success: false,
-        message: "Connection failed. Please check your credentials.",
+        message: "Не удалось проверить соединение.",
       });
+    }
+  }
+
+  async function detectChat() {
+    setIsDetecting(true);
+    setDetectStatus({ message: "Поиск чатов..." });
+
+    try {
+      const botToken = form.getValues().bot_token || null;
+      const result = await detectChatsAction(botToken);
+
+      if (result.error) {
+        setDetectedChats(null);
+        setDetectStatus({ success: false, message: result.error });
+      } else if (result.chats && result.chats.length > 0) {
+        setDetectedChats(result.chats);
+        setDetectStatus({
+          success: true,
+          message: `Найдено чатов: ${result.chats.length}. Выберите нужный.`,
+        });
+      }
+    } catch (error) {
+      console.error("Error detecting chats:", error);
+      setDetectedChats(null);
+      setDetectStatus({
+        success: false,
+        message: "Ошибка при определении чата. Попробуйте ещё раз.",
+      });
+    } finally {
+      setIsDetecting(false);
     }
   }
 
@@ -270,8 +328,36 @@ export default function TelegramSettingsForm({
               Как настроить интеграцию с Telegram:
             </h3>
             <ol className="list-decimal pl-5 text-[#0A84FF]/90 space-y-1 ml-2 text-sm">
+              {centralBot?.username ? (
+                <li>
+                  Добавьте бота{" "}
+                  <span className="font-medium">@{centralBot.username}</span> в
+                  вашу группу
+                </li>
+              ) : (
+                <li>
+                  Добавьте бота приложения в вашу группу (или используйте своего
+                  бота)
+                </li>
+              )}
               <li>
-                Начните чат с{" "}
+                Узнайте ID группы: добавьте в неё{" "}
+                <a
+                  href="https://t.me/RawDataBot"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline text-[#0A84FF] hover:text-[#0A84FF]/80 text-sm"
+                >
+                  @RawDataBot
+                </a>
+                , он напишет ID чата в группу
+              </li>
+              <li>
+                Вставьте ID группы в поле «ID чата» ниже и нажмите «Проверить
+                соединение» — в группу придёт тестовое сообщение
+              </li>
+              <li>
+                Свой бот (необязательно): создайте его в{" "}
                 <a
                   href="https://t.me/BotFather"
                   target="_blank"
@@ -279,29 +365,8 @@ export default function TelegramSettingsForm({
                   className="underline text-[#0A84FF] hover:text-[#0A84FF]/80 text-sm"
                 >
                   @BotFather
-                </a>{" "}
-                в Telegram
-              </li>
-              <li>
-                Отправьте команду /newbot и следуйте инструкциям для создания
-                нового бота
-              </li>
-              <li>
-                Скопируйте API токен, предоставленный BotFather, и вставьте его
-                ниже
-              </li>
-              <li>Начните чат с вашим новым ботом или добавьте его в группу</li>
-              <li>
-                Получите ваш ID чата, используя{" "}
-                <a
-                  href="https://t.me/userinfobot"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline text-[#0A84FF] hover:text-[#0A84FF]/80 text-sm"
-                >
-                  @userinfobot
-                </a>{" "}
-                и вставьте его ниже
+                </a>
+                , вставьте токен в поле ниже и используйте «Определить чат»
               </li>
             </ol>
           </div>
@@ -317,8 +382,52 @@ export default function TelegramSettingsForm({
                 </FormControl>
                 <FormDescription>
                   Ваш ID чата Telegram или ID группы, куда будут отправляться
-                  уведомления.
+                  уведомления. Для группы узнайте ID через @RawDataBot (см.
+                  инструкцию выше) или нажмите «Определить чат» при
+                  использовании своего бота.
                 </FormDescription>
+                <div className="mt-2 flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={detectChat}
+                    disabled={isDetecting}
+                    className="w-fit"
+                  >
+                    {isDetecting ? "Поиск..." : "Определить чат"}
+                  </Button>
+                  {detectStatus && (
+                    <p
+                      className={`text-sm ${detectStatus.success ? "text-green-600" : detectStatus.success === false ? "text-red-600" : "text-blue-600"}`}
+                    >
+                      {detectStatus.message}
+                    </p>
+                  )}
+                  {detectedChats && detectedChats.length > 0 && (
+                    <div className="max-h-48 space-y-1 overflow-auto rounded-md border p-2">
+                      {detectedChats.map((chat) => (
+                        <button
+                          key={chat.chatId}
+                          type="button"
+                          onClick={() => {
+                            form.setValue("chat_id", chat.chatId);
+                            setDetectStatus({
+                              success: true,
+                              message: `Выбран чат: ${chat.title}`,
+                            });
+                          }}
+                          className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+                        >
+                          <span className="truncate">{chat.title}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {chat.type === "private" ? "личный чат" : "группа"}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <FormMessage />
               </FormItem>
             )}
@@ -339,7 +448,9 @@ export default function TelegramSettingsForm({
                   />
                 </FormControl>
                 <FormDescription>
-                  Ваш токен бота Telegram от BotFather.
+                  Необязательно. Оставьте пустым, чтобы использовать общего бота
+                  приложения. Если у вас есть свой бот от BotFather — вставьте
+                  его токен (сохраняется скрытым).
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -351,11 +462,7 @@ export default function TelegramSettingsForm({
               type="button"
               variant="default"
               onClick={testConnection}
-              disabled={
-                isSubmitting ||
-                !form.getValues().bot_token ||
-                !form.getValues().chat_id
-              }
+              disabled={isSubmitting || !form.getValues().chat_id}
             >
               Проверить соединение
             </Button>
@@ -586,37 +693,31 @@ export default function TelegramSettingsForm({
               className="dark:bg-[#0A84FF] dark:text-white dark:hover:bg-[#0A84FF]/90"
               onClick={async () => {
                 const values = form.getValues();
-                if (!values.bot_token || !values.chat_id) {
+                if (!values.chat_id) {
+                  alert("Укажите ID чата для отправки сообщения.");
+                  return;
+                }
+
+                if (values.bot_token && isMaskedBotToken(values.bot_token)) {
                   alert(
-                    "Необходимо указать токен бота и ID чата для отправки сообщения.",
+                    "Введите новый токен бота, чтобы отправить тестовое сообщение (текущий скрыт).",
                   );
                   return;
                 }
 
                 try {
-                  const response = await fetch(
-                    `https://api.telegram.org/bot${values.bot_token}/sendMessage`,
-                    {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        chat_id: values.chat_id,
-                        text: previewMessage,
-                        parse_mode: "HTML",
-                      }),
-                    },
+                  const result = await sendTelegramMessageAction(
+                    values.chat_id,
+                    previewMessage,
+                    values.bot_token || null,
                   );
 
-                  const data = await response.json();
-
-                  if (data.ok) {
+                  if (result.ok) {
                     alert("Сообщение успешно отправлено!");
                     setPreviewOpen(false);
                   } else {
                     alert(
-                      `Ошибка при отправке: ${data.description || "Неизвестная ошибка"}`,
+                      `Ошибка при отправке: ${result.error || "Неизвестная ошибка"}`,
                     );
                   }
                 } catch (error) {

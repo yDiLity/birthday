@@ -64,26 +64,3 @@ export function buildSeedRows(
 ): Array<{ user_id: string; text: string }> {
   return congratulations.map((text) => ({ user_id: userId, text }));
 }
-
-/**
- * Возвращает индекс случайного поздравления, исключая уже использованные.
- * Если все поздравления использованы, пул сбрасывается (C4).
- */
-export function pickCongratulationIndex(
-  usedIndexes: readonly number[],
-): number {
-  const used = new Set(usedIndexes);
-  const available: number[] = [];
-
-  for (let i = 0; i < CONGRATULATIONS_COUNT; i++) {
-    if (!used.has(i)) {
-      available.push(i);
-    }
-  }
-
-  if (available.length === 0) {
-    return Math.floor(Math.random() * CONGRATULATIONS_COUNT);
-  }
-
-  return available[Math.floor(Math.random() * available.length)];
-}

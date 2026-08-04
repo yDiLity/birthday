@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tables } from "@/types/supabase";
+import type { Tables } from "@/types/supabase";
 import { createClient } from "../../../supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";

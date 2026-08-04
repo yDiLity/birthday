@@ -1,12 +1,10 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "../../../../supabase/server";
-import DashboardNavbar from "@/components/dashboard-navbar";
 import TelegramSettingsForm from "@/components/telegram/telegram-settings-form";
 import { Button } from "@/components/ui/button";
-import { Tables } from "@/types/supabase";
+import type { Tables } from "@/types/supabase";
 import { MessageSquareText } from "lucide-react";
-import { AuthCheck } from "@/components/auth/auth-check";
 
 export default async function TelegramSettingsPage() {
   const supabase = await createClient();
@@ -19,11 +17,9 @@ export default async function TelegramSettingsPage() {
     return redirect("/sign-in");
   }
 
-  // Fetch existing telegram settings for the user
+  // Настройки отдаются через security definer функцию с замаскированным токеном.
   const { data: telegramSettings, error } = await supabase
-    .from("telegram_settings")
-    .select("*")
-    .eq("user_id", user?.id || "")
+    .rpc("get_my_telegram_settings")
     .maybeSingle();
 
   if (error) {

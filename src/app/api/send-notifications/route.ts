@@ -1,65 +1,18 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { getSupabaseServiceRoleKey } from "@/lib/env";
+import { getSupabaseServiceRoleKey, getTelegramBotToken } from "@/lib/env";
 import { buildSeedRows } from "@/lib/congratulations";
 import { getRateLimit } from "@/lib/rate-limit";
+import { escapeHtml, sendTelegramMessage } from "@/lib/telegram";
 import type { Database } from "@/types/supabase";
 import { NextResponse } from "next/server";
 
 // Add this line to explicitly set the allowed methods
 export const dynamic = "force-dynamic";
 
-interface ApiError {
-  message: string;
-}
-
-interface Contact {
-  id: string;
-  name: string;
-  birth_date: string;
-  notes: string | null;
-}
-
-interface TelegramSettings {
-  chat_id: string;
-  bot_token: string | null;
-  message_template: string;
-  days_before: number;
-  use_random_congratulations: boolean;
-}
-
-async function sendTelegramMessage(
-  botToken: string,
-  chatId: string,
-  message: string,
-) {
-  try {
-    const response = await fetch(
-      `https://api.telegram.org/bot${botToken}/sendMessage`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: message,
-          parse_mode: "HTML",
-        }),
-      },
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Telegram API error:", errorData);
-      return { success: false, error: errorData };
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error("Error sending Telegram message:", error);
-    return { success: false, error };
-  }
-}
+type Contact = Pick<
+  Database["public"]["Tables"]["contacts"]["Row"],
+  "id" | "name" | "birth_date" | "notes"
+>;
 
 function formatBirthdayMessage(
   template: string,
@@ -67,10 +20,77 @@ function formatBirthdayMessage(
   daysUntilBirthday: number,
 ) {
   let message = template;
-  message = message.replace(/{{name}}/g, contact.name);
+  message = message.replace(/{{name}}/g, escapeHtml(contact.name));
   message = message.replace(/{{days}}/g, daysUntilBirthday.toString());
-  message = message.replace(/{{notes}}/g, contact.notes || "");
+  message = message.replace(/{{notes}}/g, escapeHtml(contact.notes || ""));
   return message;
+}
+
+/** Разбор часового пояса вида "GMT+3", "GMT-5", "GMT+3:30" → смещение в минутах. */
+function getOffsetMinutes(timezone: string | null | undefined): number {
+  if (!timezone) return 0;
+  const match = /^GMT([+-])(\d{1,2})(?::(\d{2}))?$/i.exec(timezone.trim());
+  if (!match) return 0;
+  const sign = match[1] === "-" ? -1 : 1;
+  const hours = Number.parseInt(match[2], 10);
+  const minutes = match[3] ? Number.parseInt(match[3], 10) : 0;
+  return sign * (hours * 60 + minutes);
+}
+
+interface TzNow {
+  year: number;
+  month: number;
+  date: number;
+  hours: number;
+  minutes: number;
+}
+
+/** Текущее время в заданном часовом поясе. */
+function nowInTimezone(offsetMinutes: number): TzNow {
+  const now = new Date();
+  const utcMs =
+    now.getTime() + now.getTimezoneOffset() * 60000 + offsetMinutes * 60000;
+  const d = new Date(utcMs);
+  return {
+    year: d.getUTCFullYear(),
+    month: d.getUTCMonth(),
+    date: d.getUTCDate(),
+    hours: d.getUTCHours(),
+    minutes: d.getUTCMinutes(),
+  };
+}
+
+/** Число дней до дня рождения (0 = сегодня) в локальном времени пользователя. */
+function daysUntilBirthday(now: TzNow, birthDateStr: string): number {
+  const birth = new Date(birthDateStr);
+  const todayStart = Date.UTC(now.year, now.month, now.date);
+  let candidate = new Date(
+    Date.UTC(now.year, birth.getUTCMonth(), birth.getUTCDate()),
+  );
+  let diff = Math.round((candidate.getTime() - todayStart) / 86400000);
+  if (diff < 0) {
+    candidate = new Date(
+      Date.UTC(now.year + 1, birth.getUTCMonth(), birth.getUTCDate()),
+    );
+    diff = Math.round((candidate.getTime() - todayStart) / 86400000);
+  }
+  return diff;
+}
+
+function formatSentDate(now: TzNow): string {
+  const month = String(now.month + 1).padStart(2, "0");
+  const date = String(now.date).padStart(2, "0");
+  return `${now.year}-${month}-${date}`;
+}
+
+/** "09:00:00" или "09:00" → минуты с начала суток. */
+function parseNotificationTime(
+  value: string | null | undefined,
+): number | null {
+  if (!value) return null;
+  const match = /^(\d{1,2}):(\d{2})/.exec(value);
+  if (!match) return null;
+  return Number.parseInt(match[1], 10) * 60 + Number.parseInt(match[2], 10);
 }
 
 async function getRandomCongratulation(
@@ -142,16 +162,6 @@ async function getRandomCongratulation(
   }
 }
 
-function isBirthdayToday(birthDateStr: string): boolean {
-  const today = new Date();
-  const birthDate = new Date(birthDateStr);
-
-  return (
-    today.getMonth() === birthDate.getMonth() &&
-    today.getDate() === birthDate.getDate()
-  );
-}
-
 export async function POST(req: Request) {
   try {
     const serviceRoleKey = getSupabaseServiceRoleKey();
@@ -168,8 +178,10 @@ export async function POST(req: Request) {
     const rateLimit = getRateLimit();
     if (rateLimit) {
       const forwardedFor = req.headers.get("x-forwarded-for");
-      const identifier = forwardedFor?.split(",")[0]?.trim() || "send-notifications";
-      const { success, limit, remaining, reset } = await rateLimit.limit(identifier);
+      const identifier =
+        forwardedFor?.split(",")[0]?.trim() || "send-notifications";
+      const { success, limit, remaining, reset } =
+        await rateLimit.limit(identifier);
 
       if (!success) {
         return NextResponse.json(
@@ -189,14 +201,6 @@ export async function POST(req: Request) {
     // Get authorization header
     const authHeader = req.headers.get("authorization");
     const supabaseUrl = req.headers.get("x-supabase-url");
-
-    // More detailed logging for debugging
-    console.log("Auth check:", {
-      receivedUrl: supabaseUrl,
-      expectedUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasAuthHeader: !!authHeader,
-      headerFormat: authHeader?.startsWith("Bearer ") ? "correct" : "incorrect",
-    });
 
     // Check if auth header exists and matches
     if (
@@ -218,12 +222,6 @@ export async function POST(req: Request) {
     const url = new URL(req.url);
     const forceCheck = url.searchParams.get("force") === "true";
 
-    console.log("Debug info:", {
-      forceCheck,
-      requestUrl: req.url,
-      searchParams: Object.fromEntries(url.searchParams.entries()),
-    });
-
     const supabase = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       serviceRoleKey!,
@@ -231,7 +229,9 @@ export async function POST(req: Request) {
 
     const { data: telegramSettings, error: settingsError } = await supabase
       .from("telegram_settings")
-      .select("*")
+      .select(
+        "user_id, chat_id, bot_token, message_template, days_before, notification_time, timezone, use_random_congratulations",
+      )
       .eq("is_active", true);
 
     if (settingsError) {
@@ -251,13 +251,25 @@ export async function POST(req: Request) {
 
     let notificationsSent = false;
     let birthdaysFound = false;
+    let alreadySent = 0;
+
+    // Общий бот приложения, если задан. Иначе — свой бот каждого пользователя.
+    const centralBotToken = getTelegramBotToken();
 
     for (const settings of telegramSettings) {
-      if (!settings.bot_token) continue;
+      const botToken = centralBotToken ?? settings.bot_token;
+      if (!botToken) continue;
+
+      const now = nowInTimezone(getOffsetMinutes(settings.timezone));
+      const todayStr = formatSentDate(now);
+      const currentMinutes = now.hours * 60 + now.minutes;
+      const notificationMinutes = parseNotificationTime(
+        settings.notification_time,
+      );
 
       const { data: contacts, error: contactsError } = await supabase
         .from("contacts")
-        .select("*")
+        .select("id, name, birth_date, notes")
         .eq("user_id", settings.user_id);
 
       if (contactsError) {
@@ -266,63 +278,107 @@ export async function POST(req: Request) {
       }
 
       for (const contact of contacts) {
-        console.log("Processing contact:", {
-          name: contact.name,
-          birthDate: contact.birth_date,
-          isBirthdayToday: isBirthdayToday(contact.birth_date),
-        });
+        const daysUntil = daysUntilBirthday(now, contact.birth_date);
+        const isReminderDay =
+          daysUntil === 0 ||
+          (settings.days_before != null &&
+            settings.days_before > 0 &&
+            daysUntil === settings.days_before);
 
-        if (isBirthdayToday(contact.birth_date)) {
-          console.log("Birthday found for:", contact.name);
-          birthdaysFound = true;
+        if (!isReminderDay) {
+          continue;
+        }
 
-          let message: string | null = null;
+        birthdaysFound = true;
 
-          if (settings.use_random_congratulations) {
-            message = await getRandomCongratulation(supabase, settings.user_id);
-            if (!message) {
-              message = formatBirthdayMessage(
-                settings.message_template ?? "",
-                contact,
-                0,
-              );
-            }
-          } else {
+        // Не отправляем раньше заданного времени уведомления (если задано).
+        if (
+          !forceCheck &&
+          notificationMinutes !== null &&
+          currentMinutes < notificationMinutes
+        ) {
+          console.log(
+            `Skipping ${contact.name}: current ${currentMinutes} < notification time ${notificationMinutes}`,
+          );
+          continue;
+        }
+
+        // Защита от дублей при повторных запусках cron.
+        const { data: existing } = await supabase
+          .from("notification_log")
+          .select("id")
+          .eq("contact_id", contact.id)
+          .eq("sent_date", todayStr)
+          .maybeSingle();
+
+        if (existing) {
+          alreadySent += 1;
+          console.log(`Notification for ${contact.name} already sent today`);
+          continue;
+        }
+
+        let message: string | null = null;
+
+        if (settings.use_random_congratulations) {
+          message = await getRandomCongratulation(supabase, settings.user_id);
+          if (!message) {
             message = formatBirthdayMessage(
               settings.message_template ?? "",
               contact,
-              0,
+              daysUntil,
             );
           }
-
-          const result = await sendTelegramMessage(
-            settings.bot_token,
-            settings.chat_id,
-            message,
+        } else {
+          message = formatBirthdayMessage(
+            settings.message_template ?? "",
+            contact,
+            daysUntil,
           );
+        }
 
-          if (result.success) {
-            notificationsSent = true;
-            console.log(`Birthday notification sent for ${contact.name}`);
-          } else {
-            console.error(
-              `Failed to send notification for ${contact.name}:`,
-              result.error,
-            );
-          }
+        const result = await sendTelegramMessage(
+          botToken,
+          settings.chat_id,
+          message,
+        );
+
+        if (result.success) {
+          notificationsSent = true;
+          await supabase.from("notification_log").insert({
+            user_id: settings.user_id,
+            contact_id: contact.id,
+            sent_date: todayStr,
+          });
+          console.log(`Birthday notification sent for ${contact.name}`);
+        } else {
+          console.error(
+            `Failed to send notification for ${contact.name}:`,
+            result.error,
+          );
         }
       }
     }
 
-    return NextResponse.json({
-      message: birthdaysFound
-        ? notificationsSent
+    const summary = [];
+    if (birthdaysFound) {
+      summary.push(
+        notificationsSent
           ? "Birthday notifications sent!"
-          : "Birthdays found but notifications were not sent"
-        : "No birthdays today",
+          : "Birthdays found but notifications were not sent",
+      );
+    } else {
+      summary.push("No birthdays today");
+    }
+    if (alreadySent > 0) {
+      summary.push(`${alreadySent} already sent`);
+    }
+
+    return NextResponse.json({
+      message: summary.join(". "),
       success: true,
       birthdaysFound,
       notificationsSent,
+      alreadySent,
     });
   } catch (error) {
     console.error("Detailed error in birthday notifications:", error);
@@ -338,7 +394,7 @@ export async function POST(req: Request) {
 }
 
 // Optionally, add an OPTIONS handler to properly handle CORS
-export async function OPTIONS(req: Request) {
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
     headers: {

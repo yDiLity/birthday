@@ -14,30 +14,3 @@ export function encodedRedirect(
 ) {
   return redirect(`${path}?${type}=${encodeURIComponent(message)}`);
 }
-
-/**
- * Formats a date string to a more readable format (Day Month Year)
- * @param {string} dateString - The date string to format
- * @returns {string} The formatted date string
- */
-export function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString("ru-RU", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-/**
- * Formats a date string to show only month and day (Day Month)
- * @param {string} dateString - The date string to format
- * @returns {string} The formatted date string with only month and day
- */
-export function formatMonthDay(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString("ru-RU", {
-    day: "numeric",
-    month: "long",
-  });
-}

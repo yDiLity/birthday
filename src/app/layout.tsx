@@ -1,7 +1,8 @@
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Script from "next/script";
 import { TempoInit } from "@/components/tempo-init";
 import { ZoomLock } from "@/components/zoom-lock";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -38,6 +39,8 @@ export default function RootLayout({
         </ThemeProvider>
         <TempoInit />
         <ZoomLock />
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
