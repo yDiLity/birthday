@@ -213,47 +213,87 @@
     color: hsl(var(--aurora-1));
   }
 
-  /* Auth page background */
+  /* Auth page background — переливающееся aurora-свечение */
   .auth-bg {
     @apply min-h-screen;
-    background: radial-gradient(
-        ellipse at 20% 50%,
-        hsl(var(--aurora-1) / 0.08) 0%,
-        transparent 50%
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(
+        ellipse,
+        hsl(var(--aurora-1) / 0.09) 0%,
+        transparent 55%
       ),
       radial-gradient(
-        ellipse at 80% 20%,
-        hsl(var(--aurora-2) / 0.06) 0%,
-        transparent 50%
+        ellipse,
+        hsl(var(--aurora-2) / 0.07) 0%,
+        transparent 55%
       ),
       radial-gradient(
-        ellipse at 50% 80%,
+        ellipse,
         hsl(var(--aurora-3) / 0.05) 0%,
-        transparent 50%
-      ), hsl(var(--background));
+        transparent 55%
+      );
+    background-size: 180% 180%, 180% 180%, 200% 200%;
+    background-position: 0% 0%, 100% 0%, 50% 100%;
+    background-attachment: fixed;
+    animation: aurora-drift 20s ease-in-out infinite;
+  }
+  .dark .auth-bg {
+    background-image: radial-gradient(
+        ellipse,
+        hsl(var(--aurora-1) / 0.12) 0%,
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse,
+        hsl(var(--aurora-2) / 0.08) 0%,
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse,
+        hsl(var(--aurora-3) / 0.06) 0%,
+        transparent 55%
+      );
   }
 
-  /* Оболочка приложения: в тёмной теме — мягкое aurora-свечение */
+  /* Оболочка приложения: переливающееся aurora-свечение в обеих темах */
   .app-shell {
     @apply min-h-screen bg-background transition-colors duration-300;
+    background-image: radial-gradient(
+        ellipse,
+        hsl(var(--aurora-1) / 0.09) 0%,
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse,
+        hsl(var(--aurora-2) / 0.07) 0%,
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse,
+        hsl(var(--aurora-3) / 0.05) 0%,
+        transparent 55%
+      );
+    background-size: 180% 180%, 180% 180%, 200% 200%;
+    background-position: 0% 0%, 100% 0%, 50% 100%;
+    background-attachment: fixed;
+    animation: aurora-drift 20s ease-in-out infinite;
   }
   .dark .app-shell {
     background-image: radial-gradient(
-        ellipse at 15% 0%,
-        hsl(var(--aurora-1) / 0.11) 0%,
-        transparent 45%
+        ellipse,
+        hsl(var(--aurora-1) / 0.13) 0%,
+        transparent 55%
       ),
       radial-gradient(
-        ellipse at 85% 10%,
-        hsl(var(--aurora-2) / 0.08) 0%,
-        transparent 40%
+        ellipse,
+        hsl(var(--aurora-2) / 0.10) 0%,
+        transparent 55%
       ),
       radial-gradient(
-        ellipse at 50% 115%,
-        hsl(var(--aurora-3) / 0.07) 0%,
-        transparent 50%
+        ellipse,
+        hsl(var(--aurora-3) / 0.08) 0%,
+        transparent 55%
       );
-    background-attachment: fixed;
   }
 }
 
@@ -308,6 +348,20 @@
   }
   50% {
     transform: translateY(-5px);
+  }
+}
+
+/* Медленный дрейф aurora-пятен — эффект переливания */
+@keyframes aurora-drift {
+  0%,
+  100% {
+    background-position: 0% 0%, 100% 0%, 50% 100%;
+  }
+  33% {
+    background-position: 45% 25%, 70% 15%, 30% 60%;
+  }
+  66% {
+    background-position: 55% 45%, 25% 35%, 70% 40%;
   }
 }
 
