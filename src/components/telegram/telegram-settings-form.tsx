@@ -703,8 +703,10 @@ export default function TelegramSettingsForm({
               Так будет выглядеть ваше сообщение в Telegram:
             </DialogDescription>
           </DialogHeader>
-          <div className="bg-gray-100 p-4 rounded-md mt-2 mb-4">
-            <p className="whitespace-pre-wrap">{previewMessage}</p>
+          <div className="bg-muted p-4 rounded-md mt-2 mb-4">
+            <p className="whitespace-pre-wrap text-foreground">
+              {previewMessage}
+            </p>
           </div>
           <div className="flex justify-end">
             <Button
