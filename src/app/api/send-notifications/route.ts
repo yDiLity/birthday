@@ -163,6 +163,14 @@ async function getRandomCongratulation(
 }
 
 export async function POST(req: Request) {
+  return handleRequest(req);
+}
+
+export async function GET(req: Request) {
+  return handleRequest(req);
+}
+
+async function handleRequest(req: Request) {
   try {
     const serviceRoleKey = getSupabaseServiceRoleKey();
 
@@ -198,17 +206,21 @@ export async function POST(req: Request) {
       }
     }
 
-    // Get authorization header
+    // Авторизация: Bearer-заголовок (GitHub Actions) ИЛИ секрет в query
+    // (внешние пингеры вроде UptimeRobot, где нельзя задать заголовки).
     const authHeader = req.headers.get("authorization");
     const supabaseUrl = req.headers.get("x-supabase-url");
+    const url = new URL(req.url);
+    const bearerOk =
+      authHeader?.startsWith("Bearer ") &&
+      authHeader.split(" ")[1] === serviceRoleKey &&
+      supabaseUrl === process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const cronSecret = process.env.CRON_SECRET;
+    const cronOk =
+      Boolean(cronSecret) &&
+      url.searchParams.get("cron_secret") === cronSecret;
 
-    // Check if auth header exists and matches
-    if (
-      !authHeader ||
-      !authHeader.startsWith("Bearer ") ||
-      authHeader.split(" ")[1] !== serviceRoleKey ||
-      supabaseUrl !== process.env.NEXT_PUBLIC_SUPABASE_URL
-    ) {
+    if (!bearerOk && !cronOk) {
       return NextResponse.json(
         {
           error: "Invalid API key",
@@ -219,7 +231,6 @@ export async function POST(req: Request) {
     }
 
     // Get force parameter from URL
-    const url = new URL(req.url);
     const forceCheck = url.searchParams.get("force") === "true";
 
     const supabase = createClient<Database>(
@@ -399,7 +410,7 @@ export async function OPTIONS() {
     status: 204,
     headers: {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST",
+      "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
       "Access-Control-Allow-Headers":
         "Content-Type, Authorization, x-supabase-url",
     },
