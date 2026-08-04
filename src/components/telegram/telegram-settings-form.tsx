@@ -20,7 +20,7 @@ import { createClient } from "../../../supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon, X } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -341,14 +341,22 @@ export default function TelegramSettingsForm({
                 <li>
                   Добавьте бота{" "}
                   <span className="font-medium">@{centralBot.username}</span> в
-                  вашу группу
+                  вашу группу: откройте группу → нажмите на её название сверху →
+                  «Добавить участника» → найдите бота по имени
                 </li>
               ) : (
                 <li>
-                  Добавьте бота приложения в вашу группу (или используйте своего
-                  бота)
+                  Добавьте бота приложения в вашу группу: откройте группу →
+                  нажмите на её название сверху → «Добавить участника» →
+                  найдите бота (или используйте своего бота)
                 </li>
               )}
+              <li>
+                Разрешите боту писать в группу: нажмите на бота в списке
+                участников → «Назначить администратором» → включите как минимум
+                «Отправка сообщений». Без прав администратора бот не сможет
+                отправлять сообщения в группах с ограничениями
+              </li>
               <li>
                 Узнайте ID группы: добавьте в неё{" "}
                 <a
@@ -375,7 +383,9 @@ export default function TelegramSettingsForm({
                 >
                   @BotFather
                 </a>
-                , вставьте токен в поле ниже и используйте «Определить чат»
+                , вставьте токен в поле ниже и используйте «Определить чат».
+                Чтобы бот видел сообщения группы, отправьте ему в BotFather
+                команду /setprivacy → Disable
               </li>
             </ol>
           </div>
@@ -418,26 +428,59 @@ export default function TelegramSettingsForm({
                     </p>
                   )}
                   {detectedChats && detectedChats.length > 0 && (
-                    <div className="max-h-48 space-y-1 overflow-auto rounded-md border p-2">
-                      {detectedChats.map((chat) => (
-                        <button
-                          key={chat.chatId}
-                          type="button"
-                          onClick={() => {
-                            form.setValue("chat_id", chat.chatId);
-                            setDetectStatus({
-                              success: true,
-                              message: `Выбран чат: ${chat.title}`,
-                            });
-                          }}
-                          className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
-                        >
-                          <span className="truncate">{chat.title}</span>
-                          <span className="shrink-0 text-xs text-muted-foreground">
-                            {chat.type === "private" ? "личный чат" : "группа"}
-                          </span>
-                        </button>
-                      ))}
+                    <div className="rounded-md border p-2">
+                      <div className="max-h-48 space-y-1 overflow-auto">
+                        {detectedChats.map((chat) => (
+                          <div key={chat.chatId} className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                form.setValue("chat_id", chat.chatId);
+                                setDetectStatus({
+                                  success: true,
+                                  message: `Выбран чат: ${chat.title}`,
+                                });
+                              }}
+                              className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+                            >
+                              <span className="truncate">{chat.title}</span>
+                              <span className="shrink-0 text-xs text-muted-foreground">
+                                {chat.type === "private"
+                                  ? "личный чат"
+                                  : chat.type === "supergroup"
+                                    ? "супергруппа (supergroup)"
+                                    : chat.type === "group"
+                                      ? "группа"
+                                      : chat.type}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`Удалить ${chat.title} из списка`}
+                              title="Удалить из списка"
+                              onClick={() =>
+                                setDetectedChats((prev) =>
+                                  prev
+                                    ? prev.filter(
+                                        (c) => c.chatId !== chat.chatId,
+                                      )
+                                    : prev,
+                                )
+                              }
+                              className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDetectedChats(null)}
+                        className="mt-2 w-full rounded-md border border-dashed px-2 py-1 text-xs text-muted-foreground hover:bg-accent"
+                      >
+                        Очистить список
+                      </button>
                     </div>
                   )}
                 </div>
