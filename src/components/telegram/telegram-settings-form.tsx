@@ -122,6 +122,7 @@ export default function TelegramSettingsForm({
   });
 
   const useRandom = form.watch("use_random_congratulations");
+  const chatId = form.watch("chat_id");
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
@@ -519,7 +520,7 @@ export default function TelegramSettingsForm({
               type="button"
               variant="default"
               onClick={testConnection}
-              disabled={isSubmitting || !form.getValues().chat_id}
+              disabled={isSubmitting || !chatId}
             >
               Проверить соединение
             </Button>
