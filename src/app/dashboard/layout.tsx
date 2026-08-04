@@ -19,7 +19,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background transition-colors duration-300">
+    <div className="app-shell">
       <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl gradient-border transition-colors duration-300">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
