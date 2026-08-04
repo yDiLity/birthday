@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "../../../../supabase/server";
+import { createAdminClient } from "../../../../supabase/admin";
+import { buildSeedRows } from "@/lib/congratulations";
 import TelegramSettingsForm from "@/components/telegram/telegram-settings-form";
 import { Button } from "@/components/ui/button";
 import type { Tables } from "@/types/supabase";
@@ -26,6 +28,29 @@ export default async function TelegramSettingsPage() {
     console.error("Error fetching telegram settings:", error);
   }
 
+  // Первичное заполнение пула поздравлений, если у пользователя их ещё нет.
+  try {
+    const { count } = await supabase
+      .from("congratulations")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+
+    if (!count) {
+      const admin = createAdminClient();
+      await admin.from("congratulations").upsert(buildSeedRows(user.id), {
+        onConflict: "user_id,text",
+      });
+    }
+  } catch (error) {
+    console.error("Error seeding congratulations:", error);
+  }
+
+  const { data: congratulations } = await supabase
+    .from("congratulations")
+    .select("id, text")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true });
+
   return (
     <main className="p-6">
       <div className="max-w-2xl mx-auto">
@@ -41,6 +66,7 @@ export default async function TelegramSettingsPage() {
         <TelegramSettingsForm
           userId={user.id}
           settings={telegramSettings as Tables<"telegram_settings"> | null}
+          initialCongratulations={congratulations ?? []}
         />
       </div>
     </main>

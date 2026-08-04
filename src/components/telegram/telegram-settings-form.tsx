@@ -39,6 +39,7 @@ import {
   sendTelegramMessageAction,
 } from "@/app/telegram-actions";
 import type { DetectedChat, TelegramBotInfo } from "@/lib/telegram";
+import CongratulationsManager from "@/components/telegram/congratulations-manager";
 
 const formSchema = z.object({
   chat_id: z.string().min(1, {
@@ -60,11 +61,13 @@ const formSchema = z.object({
 interface TelegramSettingsFormProps {
   userId: string;
   settings: Tables<"telegram_settings"> | null;
+  initialCongratulations?: Array<{ id: string; text: string }>;
 }
 
 export default function TelegramSettingsForm({
   userId,
   settings,
+  initialCongratulations,
 }: TelegramSettingsFormProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -117,6 +120,8 @@ export default function TelegramSettingsForm({
       is_active: settings?.is_active ?? true,
     },
   });
+
+  const useRandom = form.watch("use_random_congratulations");
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
@@ -575,37 +580,51 @@ export default function TelegramSettingsForm({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="message_template"
-              render={({ field }) => (
-                <FormItem className="mt-6">
-                  <FormLabel>Шаблон сообщения</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Сегодня день рождения у {{name}}!"
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Настройте ваше поздравление. Используйте {"{{name}}"} для
-                    имени человека, {"{{days}}"} для количества дней до дня
-                    рождения и {"{{notes}}"} для любых заметок.
-                  </FormDescription>
-                  <div className="mt-2">
-                    <Button
-                      type="button"
-                      variant="default"
-                      onClick={previewMessageTemplate}
-                    >
-                      Проверить сообщение
-                    </Button>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {useRandom ? (
+              <div className="mt-6 space-y-2">
+                <FormLabel>Поздравления</FormLabel>
+                <FormDescription>
+                  Отправляется случайное поздравление из списка ниже. Можно
+                  редактировать или удалять любые сообщения.
+                </FormDescription>
+                <CongratulationsManager
+                  userId={userId}
+                  initialRows={initialCongratulations ?? []}
+                />
+              </div>
+            ) : (
+              <FormField
+                control={form.control}
+                name="message_template"
+                render={({ field }) => (
+                  <FormItem className="mt-6">
+                    <FormLabel>Шаблон сообщения</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Сегодня день рождения у {{name}}!"
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Настройте ваше поздравление. Используйте {"{{name}}"} для
+                      имени человека, {"{{days}}"} для количества дней до дня
+                      рождения и {"{{notes}}"} для любых заметок.
+                    </FormDescription>
+                    <div className="mt-2">
+                      <Button
+                        type="button"
+                        variant="default"
+                        onClick={previewMessageTemplate}
+                      >
+                        Проверить сообщение
+                      </Button>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}

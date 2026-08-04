@@ -116,7 +116,7 @@ export default function CongratulationsManager({
             : "Ничего не найдено по запросу."}
         </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
           {filtered.map((row) => (
             <li
               key={row.id}
