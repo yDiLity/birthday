@@ -72,6 +72,7 @@ export default async function SignInPage({ searchParams }: LoginProps) {
                 name="email"
                 id="email"
                 placeholder="you@example.com"
+                autoComplete="email"
               />
             </div>
 
@@ -85,6 +86,7 @@ export default async function SignInPage({ searchParams }: LoginProps) {
                 name="password"
                 id="password"
                 placeholder="Ваш пароль"
+                autoComplete="current-password"
               />
             </div>
 

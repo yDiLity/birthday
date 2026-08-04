@@ -326,7 +326,11 @@ export default function TelegramSettingsForm({
   return (
     <div className="max-w-2xl mx-auto bg-card p-6 rounded-lg border shadow-sm">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-6"
+          autoComplete="off"
+        >
           <div className="bg-[#0A84FF]/10 p-4 rounded-lg border border-[#0A84FF]/20 mb-6">
             <h3 className="font-medium text-[#0A84FF] mb-2 flex items-center gap-2 text-sm">
               <InfoIcon className="h-4 w-4" />
@@ -383,7 +387,11 @@ export default function TelegramSettingsForm({
               <FormItem>
                 <FormLabel>ID чата</FormLabel>
                 <FormControl>
-                  <Input placeholder="123456789" {...field} />
+                  <Input
+                    placeholder="123456789"
+                    autoComplete="off"
+                    {...field}
+                  />
                 </FormControl>
                 <FormDescription>
                   Ваш ID чата Telegram или ID группы, куда будут отправляться
@@ -448,6 +456,7 @@ export default function TelegramSettingsForm({
                   <Input
                     type="password"
                     placeholder="123456789:ABCdefGhIJKlmnOPQRstUVwxYZ"
+                    autoComplete="new-password"
                     {...field}
                     value={field.value || ""}
                   />

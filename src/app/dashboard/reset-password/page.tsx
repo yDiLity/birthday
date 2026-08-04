@@ -40,6 +40,7 @@ export default async function ResetPassword(props: {
                 name="password"
                 placeholder="Новый пароль"
                 required
+                autoComplete="new-password"
                 className="w-full"
               />
             </div>
@@ -54,6 +55,7 @@ export default async function ResetPassword(props: {
                 name="confirmPassword"
                 placeholder="Подтвердите пароль"
                 required
+                autoComplete="new-password"
                 className="w-full"
               />
             </div>

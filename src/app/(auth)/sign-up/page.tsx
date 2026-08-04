@@ -74,6 +74,7 @@ export default async function SignUp(props: {
                 name="email"
                 id="email"
                 placeholder="you@example.com"
+                autoComplete="email"
               />
             </div>
 
@@ -88,6 +89,7 @@ export default async function SignUp(props: {
                 id="password"
                 placeholder="Ваш пароль"
                 minLength={6}
+                autoComplete="new-password"
               />
             </div>
 
