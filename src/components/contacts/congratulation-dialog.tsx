@@ -9,11 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  buildSeedRows,
-  CONGRATULATIONS,
-  CONGRATULATIONS_COUNT,
-} from "@/lib/congratulations";
+import { buildSeedRows } from "@/lib/congratulations";
 import { Check, Copy, PartyPopper, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "../../../supabase/client";
@@ -35,21 +31,24 @@ export function CongratulationDialog({
   const [text, setText] = useState("");
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const pickNext = useCallback(async () => {
     setLoading(true);
     setCopied(false);
+    setError(null);
     try {
-      let { data: rows, error: rowsError } = await supabase
-        .from("congratulations")
-        .select("id, text")
-        .eq("user_id", userId);
+      const pick = async () =>
+        supabase
+          .rpc("pick_random_congratulation", { p_user_id: userId })
+          .maybeSingle();
 
-      if (rowsError) {
-        throw rowsError;
+      let { data, error } = await pick();
+      if (error) {
+        throw error;
       }
 
-      if (!rows || rows.length === 0) {
+      if (!data) {
         const { error: seedError } = await supabase
           .from("congratulations")
           .upsert(buildSeedRows(userId), {
@@ -60,64 +59,21 @@ export function CongratulationDialog({
           throw seedError;
         }
 
-        const seeded = await supabase
-          .from("congratulations")
-          .select("id, text")
-          .eq("user_id", userId);
-        rows = seeded.data;
+        ({ data, error } = await pick());
+        if (error) {
+          throw error;
+        }
       }
 
-      const { data: usage, error: usageError } = await supabase
-        .from("congratulations_usage")
-        .select("used_ids")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (usageError && usageError.code !== "PGRST116") {
-        throw usageError;
-      }
-
-      const used = usage?.used_ids ?? [];
-      const usedSet = new Set(used);
-      const available = (rows ?? []).filter((row) => !usedSet.has(row.id));
-
-      let pick: { id: string; text: string } | undefined;
-      let nextUsed: string[];
-
-      if (available.length === 0) {
-        const all = rows ?? [];
-        pick = all[Math.floor(Math.random() * all.length)];
-        nextUsed = pick ? [pick.id] : [];
-      } else {
-        pick = available[Math.floor(Math.random() * available.length)];
-        nextUsed = [...used, pick.id];
-      }
-
-      if (!pick) {
+      if (!data) {
         throw new Error("No congratulations available");
       }
 
-      const { error: upsertError } = await supabase
-        .from("congratulations_usage")
-        .upsert(
-          {
-            user_id: userId,
-            used_ids: nextUsed,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_id" },
-        );
-
-      if (upsertError) {
-        throw upsertError;
-      }
-
-      setText(pick.text);
+      setText((data as { id: string; text: string }).text);
     } catch (err) {
       console.error("Error fetching congratulation:", err);
-      setText(
-        CONGRATULATIONS[Math.floor(Math.random() * CONGRATULATIONS_COUNT)],
-      );
+      setText("");
+      setError("Не удалось получить поздравление. Попробуйте ещё раз.");
     } finally {
       setLoading(false);
     }
@@ -159,6 +115,8 @@ export function CongratulationDialog({
               <RefreshCw className="h-4 w-4 animate-spin" />
               Подбираем поздравление...
             </div>
+          ) : error ? (
+            <p className="text-destructive py-2">{error}</p>
           ) : (
             text
           )}

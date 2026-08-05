@@ -4,33 +4,10 @@ import { ContactActions } from "@/components/contacts/contact-actions";
 import { ContactNameCell } from "@/components/contacts/contact-name-cell";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { daysUntilBirthday } from "@/lib/birthdays";
 import type { Tables } from "@/types/supabase";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown } from "lucide-react";
-
-// Calculate days until birthday
-const calculateDaysUntilBirthday = (birthDateStr: string): number => {
-  const today = new Date();
-  const birthDate = new Date(birthDateStr);
-
-  // Set birth date to current year
-  const birthDateThisYear = new Date(
-    today.getFullYear(),
-    birthDate.getMonth(),
-    birthDate.getDate(),
-  );
-
-  // If birthday has already occurred this year, set to next year
-  if (birthDateThisYear < today) {
-    birthDateThisYear.setFullYear(today.getFullYear() + 1);
-  }
-
-  // Calculate difference in days
-  const diffTime = birthDateThisYear.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  return diffDays;
-};
 
 // Функция для расчета возраста
 const calculateAge = (birthDateStr: string): number => {
@@ -185,7 +162,7 @@ export function createColumns(userId: string): ColumnDef<Tables<"contacts">>[] {
         );
       },
       cell: ({ row }) => {
-        const daysUntil = calculateDaysUntilBirthday(row.original.birth_date);
+        const daysUntil = daysUntilBirthday(row.original.birth_date);
         if (daysUntil === 0) {
           return <span className="font-bold text-green-600">Сегодня!</span>;
         }
@@ -195,8 +172,8 @@ export function createColumns(userId: string): ColumnDef<Tables<"contacts">>[] {
         return <span>{daysUntil}</span>;
       },
       sortingFn: (rowA, rowB, _columnId) => {
-        const daysUntilA = calculateDaysUntilBirthday(rowA.original.birth_date);
-        const daysUntilB = calculateDaysUntilBirthday(rowB.original.birth_date);
+        const daysUntilA = daysUntilBirthday(rowA.original.birth_date);
+        const daysUntilB = daysUntilBirthday(rowB.original.birth_date);
         return daysUntilA - daysUntilB;
       },
     },

@@ -13,6 +13,16 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+/** Обратное преобразование HTML-сущностей для отправки обычным текстом. */
+function decodeHtml(value: string): string {
+  return value
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&gt;/g, ">")
+    .replace(/&lt;/g, "<")
+    .replace(/&amp;/g, "&");
+}
+
 interface TelegramChat {
   id?: number;
   type?: string;
@@ -35,7 +45,7 @@ export async function sendTelegramMessage(
   chatId: string,
   message: string,
 ) {
-  try {
+  const doSend = async (payload: Record<string, unknown>) => {
     const response = await fetch(
       `https://api.telegram.org/bot${botToken}/sendMessage`,
       {
@@ -43,21 +53,45 @@ export async function sendTelegramMessage(
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: message,
-          parse_mode: "HTML",
-        }),
+        body: JSON.stringify(payload),
       },
     );
+    const data = await response.json();
+    return { ok: response.ok, data };
+  };
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Telegram API error:", errorData);
-      return { success: false, error: errorData };
+  try {
+    const first = await doSend({
+      chat_id: chatId,
+      text: message,
+      parse_mode: "HTML",
+    });
+
+    if (first.ok) {
+      return { success: true };
     }
 
-    return { success: true };
+    const description: string =
+      typeof first.data?.description === "string"
+        ? first.data.description
+        : "";
+
+    // Битый HTML в тексте (например, из импортированных поздравлений) —
+    // повторяем отправку без parse_mode как обычный текст.
+    if (/parse|HTML/i.test(description)) {
+      const fallback = await doSend({
+        chat_id: chatId,
+        text: decodeHtml(message),
+      });
+      if (fallback.ok) {
+        return { success: true };
+      }
+      console.error("Telegram API error:", fallback.data);
+      return { success: false, error: fallback.data };
+    }
+
+    console.error("Telegram API error:", first.data);
+    return { success: false, error: first.data };
   } catch (error) {
     console.error("Error sending Telegram message:", error);
     return { success: false, error };

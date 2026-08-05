@@ -52,22 +52,14 @@ export default async function DashboardPage() {
       }).length
     : 0;
 
+  // Считаем дни рождения, приходящиеся на текущий календарный месяц.
+  // Месяц берём по UTC: даты в БД хранятся в формате "YYYY-MM-DD".
+  const currentMonth = new Date().getMonth();
   const upcomingBirthdays = contacts
-    ? contacts.filter((contact) => {
-        const birthDate = new Date(contact.birth_date);
-        const today = new Date();
-        const nextBirthday = new Date(
-          today.getFullYear(),
-          birthDate.getMonth(),
-          birthDate.getDate(),
-        );
-        if (nextBirthday < today) {
-          nextBirthday.setFullYear(today.getFullYear() + 1);
-        }
-        const diffTime = nextBirthday.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays <= 30;
-      }).length
+    ? contacts.filter(
+        (contact) =>
+          new Date(contact.birth_date).getUTCMonth() === currentMonth,
+      ).length
     : 0;
 
   return (
@@ -115,7 +107,7 @@ export default async function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{upcomingBirthdays}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                В ближайшие 30 дней
+                В текущем месяце
               </p>
             </CardContent>
           </Card>

@@ -34,9 +34,10 @@ const extractTextFromBlock = (block: string): string => {
   const withBreaks = block.replace(/<w:br\b[^>]*\/>/g, "\n");
   const parts: string[] = [];
   const tRe = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g;
-  let match: RegExpExecArray | null;
-  while ((match = tRe.exec(withBreaks))) {
+  let match = tRe.exec(withBreaks);
+  while (match) {
     parts.push(decodeXmlEntities(match[1]));
+    match = tRe.exec(withBreaks);
   }
   return parts.join("").trim();
 };
@@ -50,14 +51,15 @@ const parseDocx = async (buffer: ArrayBuffer): Promise<string[]> => {
   const texts: string[] = [];
   const openRe = /<w:p\b[^>]*>/g;
   const closeTag = "</w:p>";
-  let match: RegExpExecArray | null;
-  while ((match = openRe.exec(xml))) {
+  let match = openRe.exec(xml);
+  while (match) {
     const start = match.index + match[0].length;
     const end = xml.indexOf(closeTag, start);
     if (end === -1) break;
     const text = extractTextFromBlock(xml.slice(start, end));
     if (text) texts.push(text);
     openRe.lastIndex = end + closeTag.length;
+    match = openRe.exec(xml);
   }
   return texts;
 };

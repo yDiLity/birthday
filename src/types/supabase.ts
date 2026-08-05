@@ -223,6 +223,15 @@ export type Database = {
           user_id: string;
         };
       };
+      pick_random_congratulation: {
+        Args: {
+          p_user_id: string;
+        };
+        Returns: {
+          id: string;
+          text: string;
+        }[];
+      };
     };
     Enums: {
       [_ in never]: never;

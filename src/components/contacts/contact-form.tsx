@@ -20,7 +20,6 @@ import { createClient } from "../../../supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { YearNavigationCalendar } from "@/components/ui/year-navigation-calendar";
-import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import {
@@ -28,17 +27,53 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   name: z.string().min(2, {
     message: "Имя должно содержать минимум 2 символа.",
   }),
-  birth_date: z.date({
-    required_error: "Пожалуйста, выберите дату рождения.",
-  }),
+  birth_date: z.date().nullable(),
   notes: z.string().optional(),
 });
+
+function isValidDate(year: number, month: number, day: number): boolean {
+  const d = new Date(Date.UTC(year, month - 1, day));
+  return (
+    d.getUTCFullYear() === year &&
+    d.getUTCMonth() === month - 1 &&
+    d.getUTCDate() === day
+  );
+}
+
+/** Разбирает ручной ввод даты: "ДД.ММ.ГГГГ" или "ГГГГ-ММ-ДД". */
+function parseDateInput(
+  value: string,
+): { year: number; month: number; day: number } | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  let match = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(trimmed);
+  if (match) {
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3]);
+    return isValidDate(year, month, day) ? { year, month, day } : null;
+  }
+
+  match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(trimmed);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    return isValidDate(year, month, day) ? { year, month, day } : null;
+  }
+
+  return null;
+}
+
+function formatDateParts(year: number, month: number, day: number): string {
+  return `${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
+}
 
 interface ContactFormProps {
   userId: string;
@@ -51,25 +86,35 @@ export default function ContactForm({ userId, contact }: ContactFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
+  // Текст даты для ручного ввода (без привязки к часовому поясу).
+  const birthDateParts = contact?.birth_date?.split("T")[0]?.split("-");
+  const [dateInput, setDateInput] = useState(
+    birthDateParts && birthDateParts.length === 3
+      ? `${birthDateParts[2]}.${birthDateParts[1]}.${birthDateParts[0]}`
+      : "",
+  );
+
   // Initialize form with existing contact data if editing
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: contact?.name || "",
-      birth_date: contact?.birth_date
-        ? new Date(contact.birth_date)
-        : undefined,
+      birth_date: contact?.birth_date ? new Date(contact.birth_date) : null,
       notes: contact?.notes || "",
     },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!values.birth_date) {
+      form.setError("birth_date", {
+        type: "manual",
+        message: "Пожалуйста, выберите дату рождения.",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      if (!values.birth_date) {
-        throw new Error("Дата рождения обязательна");
-      }
-
       // Преобразуем дату в формат YYYY-MM-DD
       const formattedDate = new Date(values.birth_date)
         .toISOString()
@@ -118,16 +163,59 @@ export default function ContactForm({ userId, contact }: ContactFormProps) {
   }
 
   const onDateSelect = (date: Date | undefined) => {
-    if (date) {
-      // Устанавливаем дату в UTC для избежания проблем с часовыми поясами
-      // Устанавливаем время на полдень, чтобы избежать проблем с переходом на летнее/зимнее время
-      const utcDate = new Date(
-        Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0),
-      );
-      form.setValue("birth_date", utcDate);
+    if (!date) return;
+    // Устанавливаем дату в UTC на полдень, чтобы избежать проблем с DST.
+    const utcDate = new Date(
+      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0),
+    );
+    form.setValue("birth_date", utcDate, { shouldDirty: true });
+    form.clearErrors("birth_date");
+    setDateInput(
+      formatDateParts(date.getFullYear(), date.getMonth() + 1, date.getDate()),
+    );
+    // Закрываем календарь сразу после выбора даты
+    setIsCalendarOpen(false);
+  };
 
-      // Закрываем календарь сразу после выбора даты
-      setIsCalendarOpen(false);
+  const onDateInputChange = (raw: string) => {
+    const parsed = parseDateInput(raw);
+
+    if (parsed) {
+      const now = new Date();
+      const todayMs = Date.UTC(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+      );
+      const parsedMs = Date.UTC(parsed.year, parsed.month - 1, parsed.day);
+
+      if (parsed.year < 1900 || parsedMs > todayMs) {
+        setDateInput(raw);
+        form.setValue("birth_date", null, { shouldDirty: true });
+        form.setError("birth_date", {
+          type: "manual",
+          message: "Дата должна быть в диапазоне с 1900 по сегодняшний день.",
+        });
+        return;
+      }
+
+      setDateInput(formatDateParts(parsed.year, parsed.month, parsed.day));
+      const utcDate = new Date(
+        Date.UTC(parsed.year, parsed.month - 1, parsed.day, 12, 0, 0),
+      );
+      form.setValue("birth_date", utcDate, { shouldDirty: true });
+      form.clearErrors("birth_date");
+    } else {
+      setDateInput(raw);
+      form.setValue("birth_date", null, { shouldDirty: true });
+      if (raw.trim()) {
+        form.setError("birth_date", {
+          type: "manual",
+          message: "Введите дату в формате ДД.ММ.ГГГГ.",
+        });
+      } else {
+        form.clearErrors("birth_date");
+      }
     }
   };
 
@@ -164,20 +252,23 @@ export default function ContactForm({ userId, contact }: ContactFormProps) {
                 <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                   <PopoverTrigger asChild>
                     <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-[200px] pl-3 text-left font-normal bg-card/90 border-border/50 hover:bg-card shadow-sm",
-                          !field.value && "text-muted-foreground",
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "PPP", { locale: ru })
-                        ) : (
-                          <span>Выберите дату</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
+                      <div className="flex w-[260px] max-w-full">
+                        <Input
+                          value={dateInput}
+                          onChange={(e) => onDateInputChange(e.target.value)}
+                          placeholder="ДД.ММ.ГГГГ"
+                          className="rounded-r-none border-r-0 bg-card/90"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsCalendarOpen(true)}
+                          className="rounded-l-none border-border/50 bg-card/90 px-3 shadow-sm"
+                          aria-label="Открыть календарь"
+                        >
+                          <CalendarIcon className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </div>
                     </FormControl>
                   </PopoverTrigger>
                   <PopoverContent

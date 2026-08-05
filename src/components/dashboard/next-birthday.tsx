@@ -1,6 +1,7 @@
 "use client";
 
 import type { Tables } from "@/types/supabase";
+import { daysUntilBirthday } from "@/lib/birthdays";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -31,35 +32,11 @@ export function NextBirthday({
       return;
     }
 
-    // Функция для расчета дней до дня рождения
-    const calculateDaysUntilBirthday = (birthDateStr: string): number => {
-      const today = new Date();
-      const birthDate = new Date(birthDateStr);
-
-      // Создаем дату следующего дня рождения в текущем году
-      const nextBirthday = new Date(
-        today.getFullYear(),
-        birthDate.getMonth(),
-        birthDate.getDate(),
-      );
-
-      // Если день рождения уже прошел в этом году, берем следующий год
-      if (nextBirthday < today) {
-        nextBirthday.setFullYear(today.getFullYear() + 1);
-      }
-
-      // Вычисляем разницу в днях
-      const diffTime = nextBirthday.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      return diffDays;
-    };
-
     // Добавляем информацию о днях до дня рождения и сортируем по ближайшей дате
     const contactsWithDays = contacts
       .map((contact) => ({
         ...contact,
-        daysUntil: calculateDaysUntilBirthday(contact.birth_date),
+        daysUntil: daysUntilBirthday(contact.birth_date),
       }))
       .sort((a, b) => a.daysUntil - b.daysUntil);
 

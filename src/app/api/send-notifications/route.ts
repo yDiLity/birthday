@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { daysUntilBirthday } from "@/lib/birthdays";
 import { getSupabaseServiceRoleKey, getTelegramBotToken } from "@/lib/env";
 import { buildSeedRows } from "@/lib/congratulations";
 import { getRateLimit } from "@/lib/rate-limit";
@@ -60,23 +61,6 @@ function nowInTimezone(offsetMinutes: number): TzNow {
   };
 }
 
-/** Число дней до дня рождения (0 = сегодня) в локальном времени пользователя. */
-function daysUntilBirthday(now: TzNow, birthDateStr: string): number {
-  const birth = new Date(birthDateStr);
-  const todayStart = Date.UTC(now.year, now.month, now.date);
-  let candidate = new Date(
-    Date.UTC(now.year, birth.getUTCMonth(), birth.getUTCDate()),
-  );
-  let diff = Math.round((candidate.getTime() - todayStart) / 86400000);
-  if (diff < 0) {
-    candidate = new Date(
-      Date.UTC(now.year + 1, birth.getUTCMonth(), birth.getUTCDate()),
-    );
-    diff = Math.round((candidate.getTime() - todayStart) / 86400000);
-  }
-  return diff;
-}
-
 function formatSentDate(now: TzNow): string {
   const month = String(now.month + 1).padStart(2, "0");
   const date = String(now.date).padStart(2, "0");
@@ -93,73 +77,40 @@ function parseNotificationTime(
   return Number.parseInt(match[1], 10) * 60 + Number.parseInt(match[2], 10);
 }
 
-async function getRandomCongratulation(
+async function pickRandomCongratulation(
   supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<string | null> {
-  try {
-    let { data: rows } = await supabase
-      .from("congratulations")
-      .select("id, text")
-      .eq("user_id", userId);
-
-    if (!rows || rows.length === 0) {
-      await supabase.from("congratulations").upsert(buildSeedRows(userId), {
-        onConflict: "user_id,text",
-      });
-      ({ data: rows } = await supabase
-        .from("congratulations")
-        .select("id, text")
-        .eq("user_id", userId));
-    }
-
-    const { data: usage } = await supabase
-      .from("congratulations_usage")
-      .select("used_ids")
-      .eq("user_id", userId)
+  const pick = async () =>
+    supabase
+      .rpc("pick_random_congratulation", { p_user_id: userId })
       .maybeSingle();
 
-    const used: string[] = usage?.used_ids ?? [];
-    const usedSet = new Set(used);
-    const available = (rows ?? []).filter((row) => !usedSet.has(row.id));
-
-    let pick: { id: string; text: string } | undefined;
-    let nextUsed: string[];
-
-    if (available.length === 0) {
-      const all = rows ?? [];
-      pick = all[Math.floor(Math.random() * all.length)];
-      nextUsed = pick ? [pick.id] : [];
-    } else {
-      pick = available[Math.floor(Math.random() * available.length)];
-      nextUsed = [...used, pick.id];
-    }
-
-    if (!pick) {
-      return null;
-    }
-
-    const { error: upsertError } = await supabase
-      .from("congratulations_usage")
-      .upsert(
-        {
-          user_id: userId,
-          used_ids: nextUsed,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
-
-    if (upsertError) {
-      console.error("Error saving congratulations usage:", upsertError);
-      return null;
-    }
-
-    return pick.text;
-  } catch (err) {
-    console.error("Error picking random congratulation:", err);
+  let { data, error } = await pick();
+  if (error) {
+    console.error("Error picking random congratulation:", error);
     return null;
   }
+
+  if (!data) {
+    // У пользователя ещё нет поздравлений — сидим стандартный пул и пробуем снова.
+    const { error: seedError } = await supabase
+      .from("congratulations")
+      .upsert(buildSeedRows(userId), { onConflict: "user_id,text" });
+
+    if (seedError) {
+      console.error("Error seeding congratulations:", seedError);
+      return null;
+    }
+
+    ({ data, error } = await pick());
+    if (error) {
+      console.error("Error picking random congratulation:", error);
+      return null;
+    }
+  }
+
+  return data?.text ?? null;
 }
 
 export async function POST(req: Request) {
@@ -238,6 +189,22 @@ async function handleRequest(req: Request) {
       serviceRoleKey!,
     );
 
+    // Периодическая очистка лога отправок: для дедупликации нужны только свежие записи.
+    try {
+      const cutoff = new Date(Date.now() - 90 * 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+      const { error: cleanupError } = await supabase
+        .from("notification_log")
+        .delete()
+        .lt("sent_date", cutoff);
+      if (cleanupError) {
+        console.error("Error cleaning notification_log:", cleanupError);
+      }
+    } catch (err) {
+      console.error("Error cleaning notification_log:", err);
+    }
+
     const { data: telegramSettings, error: settingsError } = await supabase
       .from("telegram_settings")
       .select(
@@ -289,7 +256,7 @@ async function handleRequest(req: Request) {
       }
 
       for (const contact of contacts) {
-        const daysUntil = daysUntilBirthday(now, contact.birth_date);
+        const daysUntil = daysUntilBirthday(contact.birth_date, now);
         const isReminderDay =
           daysUntil === 0 ||
           (settings.days_before != null &&
@@ -331,17 +298,21 @@ async function handleRequest(req: Request) {
         let message: string | null = null;
 
         if (settings.use_random_congratulations) {
-          message = await getRandomCongratulation(supabase, settings.user_id);
-          if (!message) {
-            message = formatBirthdayMessage(
-              settings.message_template ?? "",
-              contact,
-              daysUntil,
-            );
-          }
-        } else {
+          message = await pickRandomCongratulation(supabase, settings.user_id);
+        }
+
+        if (!message) {
           message = formatBirthdayMessage(
             settings.message_template ?? "",
+            contact,
+            daysUntil,
+          );
+        }
+
+        // Пустой шаблон (легаси-данные) — подставляем дефолтный текст.
+        if (!message.trim()) {
+          message = formatBirthdayMessage(
+            "Сегодня день рождения у {{name}}!",
             contact,
             daysUntil,
           );
