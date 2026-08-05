@@ -20,7 +20,7 @@ import { createClient } from "../../../supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
-import { InfoIcon, Zap } from "lucide-react";
+import { Check, Copy, InfoIcon, Zap } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -86,6 +86,7 @@ export default function TelegramSettingsForm({
   } | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
   const [linkStatus, setLinkStatus] = useState<{
     success?: boolean;
     message?: string;
@@ -249,6 +250,13 @@ export default function TelegramSettingsForm({
     } finally {
       setIsStarting(false);
     }
+  }
+
+  async function copyLinkingCode() {
+    if (!linking) return;
+    await navigator.clipboard.writeText(linking.code);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
   }
 
   async function checkLinking() {
@@ -428,7 +436,34 @@ export default function TelegramSettingsForm({
                   >
                     t.me/{linking.botUsername}
                   </a>{" "}
-                  и нажмите <b>Start</b> в личном чате с ботом.
+                  и нажмите <b>Start</b> в личном чате с ботом. Если ссылка не
+                  открывается (Telegram может блокироваться), найдите бота{" "}
+                  <b>@{linking.botUsername}</b> через поиск в Telegram и
+                  отправьте ему это сообщение:
+                  <span className="mt-1.5 flex items-center gap-2">
+                    <code className="rounded-md bg-muted px-2 py-1 font-mono text-xs break-all">
+                      {linking.code}
+                    </code>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0 gap-1 px-2 text-xs"
+                      onClick={copyLinkingCode}
+                    >
+                      {codeCopied ? (
+                        <>
+                          <Check className="h-3.5 w-3.5" />
+                          Скопировано
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3.5 w-3.5" />
+                          Копировать
+                        </>
+                      )}
+                    </Button>
+                  </span>
                 </li>
                 <li>
                   Добавьте бота @{linking.botUsername} в вашу группу и разрешите
