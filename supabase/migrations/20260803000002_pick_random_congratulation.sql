@@ -34,7 +34,7 @@ BEGIN
   SELECT * INTO v_pick
   FROM public.congratulations
   WHERE user_id = v_user
-    AND NOT (id = ANY(v_used))
+    AND NOT (congratulations.id = ANY(v_used))
   ORDER BY random()
   LIMIT 1;
 
