@@ -208,7 +208,7 @@ async function handleRequest(req: Request) {
     const { data: telegramSettings, error: settingsError } = await supabase
       .from("telegram_settings")
       .select(
-        "user_id, chat_id, bot_token, message_template, days_before, notification_time, timezone, use_random_congratulations",
+        "user_id, chat_id, message_template, days_before, notification_time, timezone, use_random_congratulations",
       )
       .eq("is_active", true);
 
@@ -231,11 +231,10 @@ async function handleRequest(req: Request) {
     let birthdaysFound = false;
     let alreadySent = 0;
 
-    // Общий бот приложения, если задан. Иначе — свой бот каждого пользователя.
-    const centralBotToken = getTelegramBotToken();
+    // Общий бот приложения — единственный используемый бот.
+    const botToken = getTelegramBotToken();
 
     for (const settings of telegramSettings) {
-      const botToken = centralBotToken ?? settings.bot_token;
       if (!botToken) continue;
 
       const now = nowInTimezone(getOffsetMinutes(settings.timezone));

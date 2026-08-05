@@ -111,6 +111,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      telegram_pairings: {
+        Row: {
+          chat_id: string | null;
+          code: string;
+          created_at: string | null;
+          id: string;
+          telegram_id: number | null;
+          updated_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          chat_id?: string | null;
+          code: string;
+          created_at?: string | null;
+          id?: string;
+          telegram_id?: number | null;
+          updated_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          chat_id?: string | null;
+          code?: string;
+          created_at?: string | null;
+          id?: string;
+          telegram_id?: number | null;
+          updated_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       telegram_settings: {
         Row: {
           bot_token: string | null;

@@ -1,9 +1,3 @@
-export interface DetectedChat {
-  chatId: string;
-  title: string;
-  type: string;
-}
-
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -32,12 +26,25 @@ interface TelegramChat {
   username?: string;
 }
 
+interface TelegramUser {
+  id?: number;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+}
+
+interface TelegramMessage {
+  from?: TelegramUser;
+  chat?: TelegramChat;
+  text?: string;
+}
+
 interface TelegramUpdate {
   update_id?: number;
-  message?: { chat?: TelegramChat };
-  edited_message?: { chat?: TelegramChat };
+  message?: TelegramMessage;
+  edited_message?: TelegramMessage;
   channel_post?: { chat?: TelegramChat };
-  my_chat_member?: { chat?: TelegramChat };
+  my_chat_member?: { chat?: TelegramChat; from?: TelegramUser };
 }
 
 export async function sendTelegramMessage(
@@ -122,78 +129,49 @@ export async function getBotInfo(
 }
 
 /**
- * Определяет чаты (личные и группы), в которых состоит бот, через getUpdates.
- * Нужно, чтобы автоматически подставить chat_id группы в настройки.
+ * Читает обновления бота БЕЗ подтверждения offset. Не подтверждая offset, мы
+ * не вытесняем из очереди обновления других пользователей общего бота.
  */
-export async function detectBotChats(
+export async function getBotUpdates(botToken: string): Promise<TelegramUpdate[]> {
+  const response = await fetch(
+    `https://api.telegram.org/bot${botToken}/getUpdates`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        timeout: 0,
+        limit: 100,
+        allowed_updates: [
+          "message",
+          "edited_message",
+          "channel_post",
+          "my_chat_member",
+        ],
+      }),
+    },
+  );
+  const data = await response.json();
+  if (!data.ok) {
+    throw new Error(data.description || "Telegram API error");
+  }
+  return data.result as TelegramUpdate[];
+}
+
+/** Подтверждает обработанные обновления (убирает их из очереди). */
+export async function confirmBotUpdates(
   botToken: string,
-): Promise<DetectedChat[]> {
-  const seen = new Map<string, DetectedChat>();
-
-  const collectChat = (chat: TelegramChat | undefined) => {
-    if (!chat || typeof chat.id !== "number") return;
-    const id = String(chat.id);
-    const type = chat.type ?? "unknown";
-    const name =
-      chat.title ||
-      [chat.first_name, chat.last_name].filter(Boolean).join(" ") ||
-      chat.username ||
-      "";
-    const existing = seen.get(id);
-    if (!existing) {
-      seen.set(id, { chatId: id, title: name || `Chat ${id}`, type });
-    } else if (name && existing.title.startsWith("Chat ")) {
-      seen.set(id, { ...existing, title: name });
-    }
-  };
-
-  const getUpdates = async (body: Record<string, unknown>) => {
-    const response = await fetch(
-      `https://api.telegram.org/bot${botToken}/getUpdates`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      },
-    );
-    const data = await response.json();
-    if (!data.ok) {
-      throw new Error(data.description || "Telegram API error");
-    }
-    return data.result as TelegramUpdate[];
-  };
-
-  const updates = await getUpdates({
-    timeout: 0,
-    limit: 100,
-    allowed_updates: [
-      "message",
-      "edited_message",
-      "channel_post",
-      "my_chat_member",
-    ],
-  });
-
-  let maxUpdateId = 0;
-  for (const update of updates) {
-    maxUpdateId = Math.max(maxUpdateId, update.update_id ?? 0);
-    if (update.message) collectChat(update.message.chat);
-    if (update.edited_message) collectChat(update.edited_message.chat);
-    if (update.channel_post) collectChat(update.channel_post.chat);
-    if (update.my_chat_member) collectChat(update.my_chat_member.chat);
+  offset: number,
+): Promise<void> {
+  const response = await fetch(
+    `https://api.telegram.org/bot${botToken}/getUpdates`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ timeout: 0, offset }),
+    },
+  );
+  const data = await response.json();
+  if (!data.ok) {
+    throw new Error(data.description || "Telegram API error");
   }
-
-  // Подтверждаем обработанные обновления, чтобы очередь не засорялась.
-  if (maxUpdateId > 0) {
-    await getUpdates({ timeout: 0, offset: maxUpdateId + 1 }).catch(() => {});
-  }
-
-  const chats = Array.from(seen.values());
-  chats.sort((a, b) => {
-    const aIsGroup = a.type === "private" ? 1 : 0;
-    const bIsGroup = b.type === "private" ? 1 : 0;
-    if (aIsGroup !== bIsGroup) return aIsGroup - bIsGroup;
-    return a.title.localeCompare(b.title, "ru");
-  });
-  return chats;
 }
