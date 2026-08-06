@@ -1,7 +1,7 @@
 "use client";
 
 import { CongratulationDialog } from "@/components/contacts/congratulation-dialog";
-import { displayLastNameFirst } from "@/components/contacts/contacts-utils";
+import { formatFullName } from "@/utils/name-formatter";
 import type { Tables } from "@/types/supabase";
 import { useState } from "react";
 
@@ -21,11 +21,11 @@ export function ContactNameCell({ userId, contact }: ContactNameCellProps) {
         title="Показать поздравление"
         className="font-medium cursor-pointer text-left underline-offset-4 hover:underline"
       >
-        {displayLastNameFirst(contact.name)}
+        {formatFullName(contact.name)}
       </button>
       <CongratulationDialog
         userId={userId}
-        contactName={displayLastNameFirst(contact.name)}
+        contactName={formatFullName(contact.name)}
         open={open}
         onOpenChange={setOpen}
       />

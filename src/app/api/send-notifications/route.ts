@@ -134,29 +134,6 @@ async function handleRequest(req: Request) {
       );
     }
 
-    const rateLimit = getRateLimit();
-    if (rateLimit) {
-      const forwardedFor = req.headers.get("x-forwarded-for");
-      const identifier =
-        forwardedFor?.split(",")[0]?.trim() || "send-notifications";
-      const { success, limit, remaining, reset } =
-        await rateLimit.limit(identifier);
-
-      if (!success) {
-        return NextResponse.json(
-          { error: "Too Many Requests" },
-          {
-            status: 429,
-            headers: {
-              "X-RateLimit-Limit": limit.toString(),
-              "X-RateLimit-Remaining": remaining.toString(),
-              "X-RateLimit-Reset": reset.toString(),
-            },
-          },
-        );
-      }
-    }
-
     // Авторизация: Bearer-заголовок (GitHub Actions) ИЛИ секрет в query
     // (внешние пингеры вроде UptimeRobot, где нельзя задать заголовки).
     const authHeader = req.headers.get("authorization");
@@ -179,6 +156,31 @@ async function handleRequest(req: Request) {
         },
         { status: 401 },
       );
+    }
+
+    // Rate limit — после проверки авторизации, чтобы неизвестные запросы
+    // не сжигали лимит по IP и не блокировали легитимные пинги UptimeRobot.
+    const rateLimit = getRateLimit();
+    if (rateLimit) {
+      const forwardedFor = req.headers.get("x-forwarded-for");
+      const identifier =
+        forwardedFor?.split(",")[0]?.trim() || "send-notifications";
+      const { success, limit, remaining, reset } =
+        await rateLimit.limit(identifier);
+
+      if (!success) {
+        return NextResponse.json(
+          { error: "Too Many Requests" },
+          {
+            status: 429,
+            headers: {
+              "X-RateLimit-Limit": limit.toString(),
+              "X-RateLimit-Remaining": remaining.toString(),
+              "X-RateLimit-Reset": reset.toString(),
+            },
+          },
+        );
+      }
     }
 
     // Get force parameter from URL

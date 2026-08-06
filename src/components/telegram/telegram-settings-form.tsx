@@ -40,6 +40,7 @@ import {
   startBotLinkingAction,
 } from "@/app/telegram-actions";
 import type { TelegramBotInfo } from "@/lib/telegram";
+import { daysUntilBirthday } from "@/lib/birthdays";
 import CongratulationsManager from "@/components/telegram/congratulations-manager";
 
 const formSchema = z.object({
@@ -313,26 +314,12 @@ export default function TelegramSettingsForm({
         const contact = contacts[0];
         let message = template;
 
-        // Рассчитываем дни до дня рождения
-        const today = new Date();
-        const birthDate = new Date(contact.birth_date);
-        const birthDateThisYear = new Date(
-          today.getFullYear(),
-          birthDate.getMonth(),
-          birthDate.getDate(),
-        );
-
-        // Если день рождения уже прошел в этом году, устанавливаем на следующий год
-        if (birthDateThisYear < today) {
-          birthDateThisYear.setFullYear(today.getFullYear() + 1);
-        }
-
-        const diffTime = birthDateThisYear.getTime() - today.getTime();
-        const daysUntil = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
         // Заменяем плейсхолдеры
         message = message.replace(/{{name}}/g, contact.name);
-        message = message.replace(/{{days}}/g, daysUntil.toString());
+        message = message.replace(
+          /{{days}}/g,
+          daysUntilBirthday(contact.birth_date).toString(),
+        );
         message = message.replace(/{{notes}}/g, contact.notes || "");
 
         setPreviewMessage(message);
@@ -587,11 +574,13 @@ export default function TelegramSettingsForm({
                         <option value="GMT-11">GMT-11</option>
                         <option value="GMT-10">GMT-10</option>
                         <option value="GMT-9">GMT-9</option>
+                        <option value="GMT-9:30">GMT-9:30</option>
                         <option value="GMT-8">GMT-8</option>
                         <option value="GMT-7">GMT-7</option>
                         <option value="GMT-6">GMT-6</option>
                         <option value="GMT-5">GMT-5</option>
                         <option value="GMT-4">GMT-4</option>
+                        <option value="GMT-3:30">GMT-3:30</option>
                         <option value="GMT-3">GMT-3</option>
                         <option value="GMT-2">GMT-2</option>
                         <option value="GMT-1">GMT-1</option>
@@ -599,12 +588,18 @@ export default function TelegramSettingsForm({
                         <option value="GMT+1">GMT+1</option>
                         <option value="GMT+2">GMT+2</option>
                         <option value="GMT+3">GMT+3</option>
+                        <option value="GMT+3:30">GMT+3:30</option>
                         <option value="GMT+4">GMT+4</option>
+                        <option value="GMT+4:30">GMT+4:30</option>
                         <option value="GMT+5">GMT+5</option>
+                        <option value="GMT+5:30">GMT+5:30</option>
+                        <option value="GMT+5:45">GMT+5:45</option>
                         <option value="GMT+6">GMT+6</option>
+                        <option value="GMT+6:30">GMT+6:30</option>
                         <option value="GMT+7">GMT+7</option>
                         <option value="GMT+8">GMT+8</option>
                         <option value="GMT+9">GMT+9</option>
+                        <option value="GMT+9:30">GMT+9:30</option>
                         <option value="GMT+10">GMT+10</option>
                         <option value="GMT+11">GMT+11</option>
                         <option value="GMT+12">GMT+12</option>
@@ -707,8 +702,8 @@ export default function TelegramSettingsForm({
                       Случайные поздравления
                     </FormLabel>
                     <FormDescription>
-                      Отправлять случайное поздравление из базы 650 уникальных
-                      текстов вместо шаблона выше.
+                      Отправлять случайное поздравление из вашего пула вместо
+                      шаблона выше.
                     </FormDescription>
                   </div>
                   <FormControl>

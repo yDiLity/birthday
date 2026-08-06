@@ -1,24 +1,38 @@
-import { Ratelimit } from "@upstash/ratelimit";
+import { Ratelimit, type Duration } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { hasUpstashRateLimitEnv } from "@/lib/env";
 
-let ratelimit: Ratelimit | null = null;
+interface RateLimitOptions {
+  prefix: string;
+  limit?: number;
+  window?: Duration;
+}
 
-export function getRateLimit() {
+const DEFAULT_OPTIONS: RateLimitOptions = {
+  prefix: "digital-birthday-reminder:api",
+};
+
+const instances = new Map<string, Ratelimit>();
+
+export function getRateLimit(options: RateLimitOptions = DEFAULT_OPTIONS) {
   if (!hasUpstashRateLimitEnv()) {
     return null;
   }
 
-  if (ratelimit) {
-    return ratelimit;
+  const { prefix, limit = 10, window = "1 m" } = options;
+  const key = `${prefix}:${limit}:${window}`;
+  const existing = instances.get(key);
+  if (existing) {
+    return existing;
   }
 
-  ratelimit = new Ratelimit({
+  const ratelimit = new Ratelimit({
     redis: Redis.fromEnv(),
-    limiter: Ratelimit.slidingWindow(10, "1 m"),
+    limiter: Ratelimit.slidingWindow(limit, window),
     analytics: true,
-    prefix: "digital-birthday-reminder:api",
+    prefix,
   });
 
+  instances.set(key, ratelimit);
   return ratelimit;
 }

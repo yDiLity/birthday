@@ -10,7 +10,7 @@ export function hasUpstashRateLimitEnv() {
   );
 }
 
-/** Токен общего бота приложения. Если не задан — используется свой бот пользователя. */
+/** Токен общего бота приложения — им отправляются все уведомления. */
 export function getTelegramBotToken() {
   return process.env.TELEGRAM_BOT_TOKEN ?? null;
 }

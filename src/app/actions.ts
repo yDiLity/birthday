@@ -5,6 +5,27 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "../../supabase/admin";
 import { createClient } from "../../supabase/server";
+import { getRateLimit } from "@/lib/rate-limit";
+
+/** Возвращает текст ошибки, если IP исчерпал лимит попыток (иначе null). */
+async function getRateLimitError(): Promise<string | null> {
+  const rateLimit = getRateLimit({
+    prefix: "digital-birthday-reminder:auth",
+    limit: 5,
+  });
+  if (!rateLimit) {
+    return null;
+  }
+
+  const forwardedFor = headers().get("x-forwarded-for");
+  const identifier = forwardedFor?.split(",")[0]?.trim() || "unknown";
+  const { success } = await rateLimit.limit(identifier);
+
+  if (!success) {
+    return "Too many attempts. Please try again later.";
+  }
+  return null;
+}
 
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
@@ -19,6 +40,11 @@ export const signUpAction = async (formData: FormData) => {
       "/sign-up",
       "Email and password are required",
     );
+  }
+
+  const rateLimited = await getRateLimitError();
+  if (rateLimited) {
+    return encodedRedirect("error", "/sign-up", rateLimited);
   }
 
   const {
@@ -74,6 +100,11 @@ export const signInAction = async (formData: FormData) => {
   const password = formData.get("password") as string;
   const supabase = await createClient();
 
+  const rateLimited = await getRateLimitError();
+  if (rateLimited) {
+    return encodedRedirect("error", "/sign-in", rateLimited);
+  }
+
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -94,6 +125,11 @@ export const forgotPasswordAction = async (formData: FormData) => {
 
   if (!email) {
     return encodedRedirect("error", "/forgot-password", "Email is required");
+  }
+
+  const rateLimited = await getRateLimitError();
+  if (rateLimited) {
+    return encodedRedirect("error", "/forgot-password", rateLimited);
   }
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -147,6 +183,15 @@ export const resetPasswordAction = async (formData: FormData) => {
       "error",
       "/dashboard/reset-password",
       "Passwords do not match",
+    );
+  }
+
+  const rateLimited = await getRateLimitError();
+  if (rateLimited) {
+    return encodedRedirect(
+      "error",
+      "/dashboard/reset-password",
+      rateLimited,
     );
   }
 

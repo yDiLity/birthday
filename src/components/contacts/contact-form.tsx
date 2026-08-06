@@ -75,6 +75,21 @@ function formatDateParts(year: number, month: number, day: number): string {
   return `${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
 }
 
+/** Вставляет точки в ручной ввод даты: "0501" → "05.01", "05011990" → "05.01.1990". */
+function applyDateMask(value: string): string {
+  const trimmed = value.trim();
+  // ISO-ввод ("ГГГГ-ММ-ДД") не трогаем.
+  if (/^\d{4}-/.test(trimmed)) {
+    return trimmed;
+  }
+  const digits = trimmed.replace(/\D/g, "").slice(0, 8);
+  const parts: string[] = [];
+  if (digits.length > 0) parts.push(digits.slice(0, 2));
+  if (digits.length > 2) parts.push(digits.slice(2, 4));
+  if (digits.length > 4) parts.push(digits.slice(4, 8));
+  return parts.join(".");
+}
+
 interface ContactFormProps {
   userId: string;
   contact?: Tables<"contacts">;
@@ -178,7 +193,8 @@ export default function ContactForm({ userId, contact }: ContactFormProps) {
   };
 
   const onDateInputChange = (raw: string) => {
-    const parsed = parseDateInput(raw);
+    const masked = applyDateMask(raw);
+    const parsed = parseDateInput(masked);
 
     if (parsed) {
       const now = new Date();
@@ -190,7 +206,7 @@ export default function ContactForm({ userId, contact }: ContactFormProps) {
       const parsedMs = Date.UTC(parsed.year, parsed.month - 1, parsed.day);
 
       if (parsed.year < 1900 || parsedMs > todayMs) {
-        setDateInput(raw);
+        setDateInput(masked);
         form.setValue("birth_date", null, { shouldDirty: true });
         form.setError("birth_date", {
           type: "manual",
@@ -206,9 +222,9 @@ export default function ContactForm({ userId, contact }: ContactFormProps) {
       form.setValue("birth_date", utcDate, { shouldDirty: true });
       form.clearErrors("birth_date");
     } else {
-      setDateInput(raw);
+      setDateInput(masked);
       form.setValue("birth_date", null, { shouldDirty: true });
-      if (raw.trim()) {
+      if (masked.trim()) {
         form.setError("birth_date", {
           type: "manual",
           message: "Введите дату в формате ДД.ММ.ГГГГ.",

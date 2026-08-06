@@ -3,6 +3,7 @@ import { FormMessage, type Message } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordField } from "@/components/password-field";
 
 export default async function ResetPassword(props: {
   searchParams: Promise<Message>;
@@ -31,17 +32,13 @@ export default async function ResetPassword(props: {
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">
-                Новый пароль
-              </Label>
-              <Input
+              <PasswordField
                 id="password"
-                type="password"
                 name="password"
+                label="Новый пароль"
                 placeholder="Новый пароль"
                 required
-                autoComplete="new-password"
-                className="w-full"
+                labelClassName="text-sm font-medium"
               />
             </div>
 

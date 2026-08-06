@@ -39,7 +39,7 @@ interface TelegramMessage {
   text?: string;
 }
 
-interface TelegramUpdate {
+export interface TelegramUpdate {
   update_id?: number;
   message?: TelegramMessage;
   edited_message?: TelegramMessage;

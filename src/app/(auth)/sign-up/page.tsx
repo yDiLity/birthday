@@ -3,6 +3,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordField } from "@/components/password-field";
 import Link from "next/link";
 import { signUpAction } from "@/app/actions";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -79,17 +80,12 @@ export default async function SignUp(props: {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm">
-                Пароль
-              </Label>
-              <Input
-                type="password"
-                required
-                name="password"
+              <PasswordField
                 id="password"
+                name="password"
+                label="Пароль"
                 placeholder="Ваш пароль"
-                minLength={6}
-                autoComplete="new-password"
+                required
               />
             </div>
 

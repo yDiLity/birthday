@@ -14,13 +14,17 @@ const calculateAge = (birthDateStr: string): number => {
   const today = new Date();
   const birthDate = new Date(birthDateStr);
 
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
+  const todayYear = today.getUTCFullYear();
+  const todayMonth = today.getUTCMonth();
+  const todayDay = today.getUTCDate();
+
+  let age = todayYear - birthDate.getUTCFullYear();
+  const monthDiff = todayMonth - birthDate.getUTCMonth();
 
   // Если день рождения еще не наступил в этом году
   if (
     monthDiff < 0 ||
-    (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    (monthDiff === 0 && todayDay < birthDate.getUTCDate())
   ) {
     age--;
   }

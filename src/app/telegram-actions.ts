@@ -6,9 +6,10 @@ import {
   getBotUpdates,
   sendTelegramMessage,
   type TelegramBotInfo,
+  type TelegramUpdate,
 } from "@/lib/telegram";
 import { getTelegramBotToken } from "@/lib/env";
-import { randomBytes } from "crypto";
+import { randomBytes } from "node:crypto";
 import { createAdminClient } from "../../supabase/admin";
 import { createClient } from "../../supabase/server";
 
@@ -132,7 +133,7 @@ export async function checkBotLinkingAction(): Promise<CheckBotLinkingResult> {
     return { ok: true, status: "done", chatId: pairing.chat_id };
   }
 
-  let updates;
+  let updates: TelegramUpdate[];
   try {
     updates = await getBotUpdates(token);
   } catch (error) {
