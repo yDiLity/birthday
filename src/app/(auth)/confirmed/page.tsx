@@ -2,8 +2,16 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BadgeCheck } from "lucide-react";
 import Link from "next/link";
+import { createClient } from "../../../../supabase/server";
 
 export default async function ConfirmedPage() {
+  // Ссылка подтверждения открывается на другом устройстве (например, с
+  // телефона): после обмена кода на сессию это устройство уже авторизовано.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <section className="auth-bg flex px-4 py-16 md:py-32">
       <div className="absolute top-4 right-4">
@@ -32,20 +40,40 @@ export default async function ConfirmedPage() {
           </div>
 
           <h1 className="mb-1 mt-4 text-xl font-semibold">
-            Почта подтверждена!
+            Вы успешно зарегистрированы!
           </h1>
           <p className="text-sm text-muted-foreground">
-            Спасибо! Ваша почта успешно подтверждена.
-            <br />
-            Войдите в аккаунт, чтобы продолжить
+            Ваша почта подтверждена.
+            {user ? (
+              <>
+                <br />
+                Можно продолжить прямо здесь или вернуться к компьютеру — там
+                вы войдёте автоматически
+              </>
+            ) : (
+              <>
+                <br />
+                Вернитесь к компьютеру — он войдёт в аккаунт автоматически
+              </>
+            )}
           </p>
 
-          <Button
-            asChild
-            className="mt-6 w-full gradient-bg text-white hover:opacity-90 transition-opacity border-0"
-          >
-            <Link href="/sign-in">Войти</Link>
-          </Button>
+          {user ? (
+            <Button
+              asChild
+              className="mt-6 w-full gradient-bg text-white hover:opacity-90 transition-opacity border-0"
+            >
+              <Link href="/dashboard">Перейти к контактам</Link>
+            </Button>
+          ) : (
+            <Button
+              asChild
+              variant="outline"
+              className="mt-6 w-full"
+            >
+              <Link href="/sign-in">Войти</Link>
+            </Button>
+          )}
         </div>
       </div>
     </section>
