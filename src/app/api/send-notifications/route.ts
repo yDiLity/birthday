@@ -299,7 +299,15 @@ async function handleRequest(req: Request) {
         let message: string | null = null;
 
         if (settings.use_random_congratulations) {
-          message = await pickRandomCongratulation(supabase, settings.user_id);
+          const picked = await pickRandomCongratulation(
+            supabase,
+            settings.user_id,
+          );
+          // Именинник в начале сообщения: «Александр Михайлович, С днём
+          // рождения! …» — имя берём из карточки контакта.
+          if (picked) {
+            message = `${escapeHtml(contact.name)}, ${picked}`;
+          }
         }
 
         if (!message) {
