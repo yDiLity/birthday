@@ -40,7 +40,7 @@ async function main() {
   console.log(`Уникальных: ${texts.length}`);
   console.log(`Дубликатов пропущено: ${duplicates.length}`);
   if (duplicates.length > 0) {
-    console.log("Повторы:", [...new Set(duplicates)].join(" | "));
+    console.log("Повторы:", Array.from(new Set(duplicates)).join(" | "));
   }
 
   const env = loadEnvFile(ENV_PATH);
@@ -64,14 +64,16 @@ async function main() {
   }
   console.log(
     "Сейчас в БД:",
-    [...byUser.entries()].map(([u, c]) => `${u.slice(0, 8)}…: ${c}`).join(", "),
+    Array.from(byUser.entries())
+      .map(([u, c]) => `${u.slice(0, 8)}…: ${c}`)
+      .join(", "),
   );
 
   if (texts.length === 0) {
     throw new Error("Не извлечено ни одного поздравления — прерываю.");
   }
 
-  let userIds = [...byUser.keys()];
+  let userIds = Array.from(byUser.keys());
   if (userIds.length === 0) {
     // Таблица пуста — берём единственного пользователя из users.
     const { data: users, error: usersError } = await supabase
@@ -93,7 +95,6 @@ async function main() {
     );
   }
   const userId = userIds[0];
-
   // Замена: удаляем старый пул пользователя целиком.
   const { error: deleteError } = await supabase
     .from("congratulations")
