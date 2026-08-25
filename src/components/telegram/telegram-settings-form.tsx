@@ -771,19 +771,19 @@ export default function TelegramSettingsForm({
       </Form>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent>
+        <DialogContent className="flex flex-col max-h-[85dvh]">
           <DialogHeader>
             <DialogTitle>Предпросмотр сообщения</DialogTitle>
             <DialogDescription>
               Так будет выглядеть ваше сообщение в Telegram:
             </DialogDescription>
           </DialogHeader>
-          <div className="bg-muted p-4 rounded-md mt-2 mb-4">
+          <div className="bg-muted p-4 rounded-md flex-1 overflow-y-auto min-h-0">
             <p className="whitespace-pre-wrap text-foreground">
               {previewMessage}
             </p>
           </div>
-          <div className="flex justify-end">
+          <div className="flex justify-end shrink-0 pt-2">
             <Button
               variant="apple"
               className="dark:bg-[#0A84FF] dark:text-white dark:hover:bg-[#0A84FF]/90"
