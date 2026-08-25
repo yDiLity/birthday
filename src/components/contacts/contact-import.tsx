@@ -289,7 +289,7 @@ export default function ContactImport({
 
       setResult({
         success: imported > 0,
-        message: parts.join(". ") + ".",
+        message: `${parts.join(". ")}.`,
         imported,
         failed,
         duplicates: duplicates.length > 0 ? duplicates : undefined,
@@ -429,6 +429,7 @@ export default function ContactImport({
           {result.duplicates && result.duplicates.length > 0 && (
             <div className="mt-3">
               <button
+                type="button"
                 onClick={() => setShowDuplicates(!showDuplicates)}
                 className="flex items-center gap-1.5 text-sm font-medium hover:underline cursor-pointer"
               >

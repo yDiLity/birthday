@@ -68,19 +68,18 @@ export async function GET(req: Request) {
       if (y === 0 && eventDate < now) continue;
 
       const age = year - birth.getUTCFullYear();
-      const dateStr = formatICSDate(contact.birth_date);
       const eventDateStr = formatICSDate(eventDate.toISOString());
 
       lines.push("BEGIN:VEVENT");
       lines.push(`DTSTART;VALUE=DATE:${eventDateStr}`);
       lines.push(`DTEND;VALUE=DATE:${eventDateStr}`);
-      lines.push(`RRULE:FREQ=YEARLY`);
+      lines.push("RRULE:FREQ=YEARLY");
       lines.push(`SUMMARY:🎂 ${escapeICS(contact.name)} — ${age} лет`);
       lines.push(
         `DESCRIPTION:День рождения ${escapeICS(contact.name)}\\nИсполняется ${age} лет`,
       );
       lines.push(`UID:${getUid()}`);
-      lines.push(`CATEGORIES:Дни рождения`);
+      lines.push("CATEGORIES:Дни рождения");
       lines.push("END:VEVENT");
     }
   }
