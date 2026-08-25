@@ -59,15 +59,20 @@ export default function ContactImport({
       .replace(/\s+/g, " ");
 
   const findDuplicates = (parsed: ParsedContact[]): string[] => {
-    const existingNames = new Set(
-      existingContacts.map((c) => normalize(c.name)),
+    const existingMap = new Map(
+      existingContacts.map((c) => [normalize(c.name), c.birth_date]),
     );
     const seen = new Set<string>();
     const dupes: string[] = [];
 
     for (const contact of parsed) {
       const norm = normalize(contact.name);
-      if (existingNames.has(norm) && !seen.has(norm)) {
+      const existingDate = existingMap.get(norm);
+      if (
+        existingDate &&
+        existingDate === contact.birth_date &&
+        !seen.has(norm)
+      ) {
         seen.add(norm);
         dupes.push(contact.name);
       }
