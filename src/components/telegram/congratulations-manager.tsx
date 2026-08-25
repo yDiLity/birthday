@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Trash2, Upload } from "lucide-react";
+import { Search, Trash2, Upload, Trash } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { createClient } from "../../../supabase/client";
 import * as XLSX from "xlsx";
@@ -100,6 +100,7 @@ export default function CongratulationsManager({
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [deletingAll, setDeletingAll] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
@@ -162,6 +163,27 @@ export default function CongratulationsManager({
       setError("Не удалось удалить поздравление.");
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const deleteAll = async () => {
+    if (!window.confirm(`Удалить все ${rows.length} поздравлений? Это действие нельзя отменить.`)) return;
+    setDeletingAll(true);
+    setError(null);
+    try {
+      const { error: deleteError } = await supabase
+        .from("congratulations")
+        .delete()
+        .eq("user_id", userId);
+
+      if (deleteError) throw deleteError;
+
+      setRows([]);
+    } catch (err) {
+      console.error("Error deleting all congratulations:", err);
+      setError("Не удалось удалить поздравления.");
+    } finally {
+      setDeletingAll(false);
     }
   };
 
@@ -296,6 +318,18 @@ export default function CongratulationsManager({
           <span className="text-sm text-muted-foreground whitespace-nowrap">
             Всего: {rows.length}
           </span>
+          {rows.length > 0 && (
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => void deleteAll()}
+              disabled={deletingAll}
+            >
+              <Trash className="mr-2 h-4 w-4" />
+              {deletingAll ? "Удаление..." : "Удалить все"}
+            </Button>
+          )}
         </div>
       </div>
 
