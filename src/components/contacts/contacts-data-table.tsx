@@ -13,5 +13,11 @@ export function ContactsDataTable({
   userId,
   contacts,
 }: ContactsDataTableProps) {
-  return <DataTable columns={createColumns(userId)} data={contacts} />;
+  return (
+    <DataTable
+      columns={createColumns(userId)}
+      data={contacts}
+      userId={userId}
+    />
+  );
 }

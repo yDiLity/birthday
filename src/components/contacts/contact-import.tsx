@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   ChevronDown,
   AlertTriangle,
+  FileDown,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Workbook } from "exceljs";
@@ -309,6 +310,29 @@ export default function ContactImport({
     }
   };
 
+  const downloadTemplate = async () => {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet("Шаблон");
+    sheet.columns = [
+      { header: "Имя", key: "name", width: 35 },
+      { header: "Дата рождения", key: "birth_date", width: 20 },
+    ];
+    sheet.addRow(["Иванов Иван Иванович", "01.05.1990"]);
+    sheet.addRow(["Петрова Мария Сергеевна", "15.08.1985"]);
+
+    // exceljs types lack writeBuffer — runtime supports it
+    const buffer = await (workbook.xlsx as unknown as { writeBuffer(): Promise<ArrayBuffer> }).writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "шаблон_контактов.xlsx";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-6 border border-border/30 rounded-xl bg-card/80 backdrop-blur-sm shadow-sm">
       <h2 className="text-xl font-semibold mb-4">Импорт контактов</h2>
@@ -325,6 +349,15 @@ export default function ContactImport({
             Иванов Иван Иванович,01.05.1990
           </code>
         </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void downloadTemplate()}
+          className="gap-2"
+        >
+          <FileDown className="h-4 w-4" />
+          Скачать шаблон Excel
+        </Button>
       </div>
 
       <div className="flex items-center gap-4 mb-6">
