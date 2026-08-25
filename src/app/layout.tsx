@@ -1,6 +1,6 @@
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { TempoInit } from "@/components/tempo-init";
@@ -15,12 +15,15 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#6d5dfc",
+};
+
 export const metadata: Metadata = {
   title: "Напоминание о днях рождения - Никогда не забывайте дни рождения",
   description:
     "Автоматические напоминания о днях рождения отправляются прямо в ваш Telegram",
   manifest: "/manifest.json",
-  themeColor: "#6d5dfc",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
