@@ -1,0 +1,21 @@
+{
+  "name": "Напоминание о днях рождения",
+  "short_name": "Дни Рождения",
+  "description": "Никогда не забывайте о днях рождения! Автоматические напоминания в Telegram.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#faf9f6",
+  "theme_color": "#6d5dfc",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/cake.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "lang": "ru",
+  "dir": "ltr"
+}

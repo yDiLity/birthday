@@ -267,9 +267,18 @@ export default function TelegramSettingsForm({
       const result = await checkBotLinkingAction();
       if (result.ok && result.status === "done" && result.chatId) {
         form.setValue("chat_id", result.chatId);
+        setLinking(null);
         setLinkStatus({
           success: true,
           message: `Чат определён: ${result.chatId}. ID подставлен в поле ниже.`,
+        });
+      } else if (result.ok && result.status === "expired") {
+        setLinking(null);
+        setLinkStatus({
+          success: false,
+          message:
+            result.error ||
+            "Срок действия подключения истёк. Нажмите «Подключить бота» заново.",
         });
       } else if (result.ok && result.status === "waiting_group_message") {
         setLinkStatus({

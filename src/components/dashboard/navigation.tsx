@@ -7,11 +7,15 @@ import { createClient } from "../../../supabase/client";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n-context";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function DashboardNavigation() {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const { t } = useI18n();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -21,19 +25,19 @@ export default function DashboardNavigation() {
   const links = [
     {
       href: "/dashboard",
-      label: "Панель",
+      label: t.nav_dashboard,
       icon: Inbox,
       active: pathname === "/dashboard",
     },
     {
       href: "/dashboard/contacts",
-      label: "Контакты",
+      label: t.nav_contacts,
       icon: Users,
       active: pathname?.startsWith("/dashboard/contacts"),
     },
     {
       href: "/dashboard/telegram",
-      label: "Telegram",
+      label: t.nav_telegram,
       icon: MessageCircle,
       active: pathname === "/dashboard/telegram",
     },
@@ -57,6 +61,8 @@ export default function DashboardNavigation() {
         </Link>
       ))}
       <div className="ml-2 h-6 w-px bg-border" />
+      <LanguageSwitcher />
+      <ThemeToggle />
       <Button
         variant="ghost"
         size="sm"
@@ -64,7 +70,7 @@ export default function DashboardNavigation() {
         className="gap-2 text-muted-foreground hover:text-destructive transition-colors"
       >
         <LogOut className="h-4 w-4" />
-        <span className="hidden sm:inline-block">Выйти</span>
+        <span className="hidden sm:inline-block">{t.nav_logout}</span>
       </Button>
     </nav>
   );

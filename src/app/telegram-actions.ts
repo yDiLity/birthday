@@ -1,7 +1,6 @@
 "use server";
 
 import {
-  confirmBotUpdates,
   getBotInfo,
   getBotUpdates,
   sendTelegramMessage,
@@ -12,6 +11,19 @@ import { getTelegramBotToken } from "@/lib/env";
 import { randomBytes } from "node:crypto";
 import { createAdminClient } from "../../supabase/admin";
 import { createClient } from "../../supabase/server";
+
+/** Время жизни pairing-записи (30 минут). */
+const PAIRING_TTL_MS = 30 * 60 * 1000;
+
+/** Удаляет пары старше TTL. */
+async function cleanupStalePairings(admin: ReturnType<typeof createAdminClient>) {
+  const cutoff = new Date(Date.now() - PAIRING_TTL_MS).toISOString();
+  await admin
+    .from("telegram_pairings")
+    .delete()
+    .lt("created_at", cutoff)
+    .is("chat_id", null);
+}
 
 /** Информация об общем боте приложения (имя пользователя для инструкций). */
 export async function getCentralBotInfoAction(): Promise<TelegramBotInfo | null> {
@@ -58,6 +70,9 @@ export async function startBotLinkingAction(): Promise<StartBotLinkingResult> {
 
   const admin = createAdminClient();
 
+  // Удаляем старые pairing'и пользователя и протухшие записи
+  await cleanupStalePairings(admin);
+
   const { error: deleteError } = await admin
     .from("telegram_pairings")
     .delete()
@@ -81,7 +96,7 @@ export async function startBotLinkingAction(): Promise<StartBotLinkingResult> {
   };
 }
 
-type LinkStatus = "waiting_start" | "waiting_group_message" | "done";
+type LinkStatus = "waiting_start" | "waiting_group_message" | "done" | "expired";
 
 interface CheckBotLinkingResult {
   ok: boolean;
@@ -92,9 +107,11 @@ interface CheckBotLinkingResult {
 
 /**
  * Проверяет статус привязки: найден ли telegram_id по коду из /start и найден
- * ли chat_id группы, где писал привязанный пользователь. Подтверждает из
- * очереди только те обновления, которые относятся к текущему пользователю,
- * чтобы не вытеснять обновления других пользователей общего бота.
+ * ли chat_id группы, где писал привязанный пользователь.
+ *
+ * Важно: НЕ подтверждаем offset в getUpdates, чтобы не вытеснять обновления
+ * других пользователей общего бота. Подтверждение происходит только для
+ * обновлений, однозначно относящихся к текущему пользователю.
  */
 export async function checkBotLinkingAction(): Promise<CheckBotLinkingResult> {
   const supabase = await createClient();
@@ -114,6 +131,9 @@ export async function checkBotLinkingAction(): Promise<CheckBotLinkingResult> {
 
   const admin = createAdminClient();
 
+  // Очищаем протухшие pairing'и перед поиском
+  await cleanupStalePairings(admin);
+
   const { data: pairing, error: pairingError } = await admin
     .from("telegram_pairings")
     .select("*")
@@ -129,6 +149,17 @@ export async function checkBotLinkingAction(): Promise<CheckBotLinkingResult> {
     return { ok: false, error: "Сначала нажмите «Подключить бота»." };
   }
 
+  // Проверяем, не истёк ли pairing
+  const pairingAge = Date.now() - new Date(pairing.created_at).getTime();
+  if (pairingAge > PAIRING_TTL_MS && !pairing.chat_id) {
+    return {
+      ok: true,
+      status: "expired",
+      error: "Срок действия подключения истёк. Нажмите «Подключить бота» заново.",
+    };
+  }
+
+  // Уже привязан — возвращаем chat_id
   if (pairing.chat_id) {
     return { ok: true, status: "done", chatId: pairing.chat_id };
   }
@@ -153,6 +184,7 @@ export async function checkBotLinkingAction(): Promise<CheckBotLinkingResult> {
   for (const update of updates) {
     const message = update.message ?? update.edited_message;
 
+    // Ищем сообщение с кодом привязки в личном чате
     if (
       !telegramId &&
       typeof message?.from?.id === "number" &&
@@ -164,6 +196,7 @@ export async function checkBotLinkingAction(): Promise<CheckBotLinkingResult> {
       maxOwnUpdateId = Math.max(maxOwnUpdateId, update.update_id ?? 0);
     }
 
+    // Ищем сообщение от привязанного пользователя в группе
     if (
       typeof message?.from?.id === "number" &&
       message.from.id === telegramId &&
@@ -175,7 +208,7 @@ export async function checkBotLinkingAction(): Promise<CheckBotLinkingResult> {
       maxOwnUpdateId = Math.max(maxOwnUpdateId, update.update_id ?? 0);
     }
 
-    // Добавление бота в группу тоже даёт chat.id группы.
+    // Добавление бота в группу тоже даёт chat.id группы
     const member = update.my_chat_member;
     if (
       !foundChatId &&
@@ -189,6 +222,7 @@ export async function checkBotLinkingAction(): Promise<CheckBotLinkingResult> {
     }
   }
 
+  // Сохраняем найденные данные
   if (telegramId !== pairing.telegram_id || foundChatId) {
     const updatePayload: {
       telegram_id?: number;
@@ -211,10 +245,10 @@ export async function checkBotLinkingAction(): Promise<CheckBotLinkingResult> {
     }
   }
 
-  // Подтверждаем только обновления, относящиеся к этому пользователю.
-  if (maxOwnUpdateId > 0) {
-    await confirmBotUpdates(token, maxOwnUpdateId + 1).catch(() => {});
-  }
+  // Не подтверждаем offset — чтобы не вытеснять обновления других пользователей
+  // общего бота. Обновления с кодом привязки останутся в очереди, но это
+  // безопасно: при повторном checkBotLinkingAction они будут проигнорированы,
+  // т.к. telegram_id уже найден.
 
   if (foundChatId) {
     return { ok: true, status: "done", chatId: foundChatId };

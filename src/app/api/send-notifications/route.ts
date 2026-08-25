@@ -15,15 +15,84 @@ type Contact = Pick<
   "id" | "name" | "birth_date" | "notes"
 >;
 
+const DAY_NAMES_RU = [
+  "воскресенье",
+  "понедельник",
+  "вторник",
+  "среда",
+  "четверг",
+  "пятница",
+  "суббота",
+];
+const DAY_NAMES_EN = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+const MONTH_NAMES_RU = [
+  "января",
+  "февраля",
+  "марта",
+  "апреля",
+  "мая",
+  "июня",
+  "июля",
+  "августа",
+  "сентября",
+  "октября",
+  "ноября",
+  "декабря",
+];
+const MONTH_NAMES_EN = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
 function formatBirthdayMessage(
   template: string,
   contact: Contact,
-  daysUntilBirthday: number,
+  daysUntil: number,
 ) {
+  const today = new Date();
+  const birth = new Date(contact.birth_date);
+  const age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  const adjustedAge =
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < birth.getDate())
+      ? age - 1
+      : age;
+
+  const birthDayOfWeek = DAY_NAMES_RU[birth.getDay()];
+  const birthDayOfWeekEn = DAY_NAMES_EN[birth.getDay()];
+  const birthMonthRu = MONTH_NAMES_RU[birth.getMonth()];
+  const birthMonthEn = MONTH_NAMES_EN[birth.getMonth()];
+  const birthDate = birth.getDate();
+
   let message = template;
   message = message.replace(/{{name}}/g, escapeHtml(contact.name));
-  message = message.replace(/{{days}}/g, daysUntilBirthday.toString());
+  message = message.replace(/{{days}}/g, daysUntil.toString());
   message = message.replace(/{{notes}}/g, escapeHtml(contact.notes || ""));
+  message = message.replace(/{{age}}/g, adjustedAge.toString());
+  message = message.replace(/{{day_of_week}}/g, birthDayOfWeek);
+  message = message.replace(/{{day_of_week_en}}/g, birthDayOfWeekEn);
+  message = message.replace(/{{month}}/g, birthMonthRu);
+  message = message.replace(/{{month_en}}/g, birthMonthEn);
+  message = message.replace(/{{date}}/g, birthDate.toString());
   return message;
 }
 
