@@ -66,7 +66,7 @@ export function CongratulationDialog({
       }
 
       if (!data) {
-        throw new Error("No congratulations available");
+        throw new Error("Нет доступных поздравлений");
       }
 
       setText((data as { id: string; text: string }).text);

@@ -7,7 +7,6 @@ import { createClient } from "../../../supabase/client";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function DashboardNavigation() {
   const pathname = usePathname();
@@ -36,7 +35,7 @@ export default function DashboardNavigation() {
       href: "/dashboard/telegram",
       label: "Telegram",
       icon: MessageCircle,
-      active: pathname === "/dashboard/telegram",
+      active: pathname?.startsWith("/dashboard/telegram"),
     },
   ];
 
@@ -58,7 +57,6 @@ export default function DashboardNavigation() {
         </Link>
       ))}
       <div className="ml-2 h-6 w-px bg-border" />
-      <ThemeToggle />
       <Button
         variant="ghost"
         size="sm"

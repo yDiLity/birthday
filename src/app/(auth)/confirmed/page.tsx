@@ -20,11 +20,11 @@ export default async function ConfirmedPage() {
       <div className="glass-card m-auto h-fit w-full max-w-sm rounded-xl p-0.5 animate-scale-in">
         <div className="p-8 text-center">
           <div className="relative flex items-center justify-center">
-            <Link href="/" aria-label="go home" className="absolute left-0">
+            <Link href="/" aria-label="На главную" className="absolute left-0">
               <div className="flex items-center justify-center h-10 w-10 rounded-lg gradient-bg">
                 <img
                   src="/cake.svg"
-                  alt="Digital Birthday Reminder"
+                  alt="Напоминание о днях рождения"
                   className="h-6 brightness-0 invert"
                 />
               </div>

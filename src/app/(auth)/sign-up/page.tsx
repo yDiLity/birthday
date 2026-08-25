@@ -29,11 +29,11 @@ export default async function SignUp(props: {
         <div className="p-8 pb-6">
           <div>
             <div className="relative flex items-center justify-center">
-              <Link href="/" aria-label="go home" className="absolute left-0">
+              <Link href="/" aria-label="На главную" className="absolute left-0">
                 <div className="flex items-center justify-center h-10 w-10 rounded-lg gradient-bg">
                   <img
                     src="/cake.svg"
-                    alt="Digital Birthday Reminder"
+                    alt="Напоминание о днях рождения"
                     className="h-6 brightness-0 invert"
                   />
                 </div>
@@ -74,7 +74,7 @@ export default async function SignUp(props: {
                 required
                 name="email"
                 id="email"
-                placeholder="you@example.com"
+                placeholder="email@example.com"
                 autoComplete="email"
               />
             </div>

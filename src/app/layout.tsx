@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { TempoInit } from "@/components/tempo-init";
-import { ZoomLock } from "@/components/zoom-lock";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "sonner";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -45,8 +45,8 @@ export default function RootLayout({
         >
           {children}
         </ThemeProvider>
+        <Toaster position="top-center" richColors />
         <TempoInit />
-        <ZoomLock />
       </body>
     </html>
   );

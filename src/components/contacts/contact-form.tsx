@@ -100,6 +100,7 @@ export default function ContactForm({ userId, contact }: ContactFormProps) {
   const supabase = createClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Текст даты для ручного ввода (без привязки к часовому поясу).
   const birthDateParts = contact?.birth_date?.split("T")[0]?.split("-");
@@ -172,6 +173,7 @@ export default function ContactForm({ userId, contact }: ContactFormProps) {
       router.refresh();
     } catch (error) {
       console.error("Error saving contact:", error);
+      setSubmitError("Не удалось сохранить контакт. Попробуйте ещё раз.");
     } finally {
       setIsSubmitting(false);
     }
@@ -346,6 +348,9 @@ export default function ContactForm({ userId, contact }: ContactFormProps) {
             )}
           />
 
+          {submitError && (
+            <p className="text-sm text-destructive">{submitError}</p>
+          )}
           <div className="flex gap-4">
             <Button type="submit" disabled={isSubmitting} variant="default">
               {isSubmitting

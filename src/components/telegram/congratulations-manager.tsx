@@ -3,6 +3,16 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Search, Trash2, Upload, Trash } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { createClient } from "../../../supabase/client";
@@ -101,6 +111,8 @@ export default function CongratulationsManager({
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
@@ -145,29 +157,38 @@ export default function CongratulationsManager({
   };
 
   const deleteRow = async (id: string) => {
-    if (!window.confirm("Удалить это поздравление из пула?")) return;
-    setSavingId(id);
+    setDeleteTargetId(id);
+  };
+
+  const confirmDeleteRow = async () => {
+    if (!deleteTargetId) return;
+    setSavingId(deleteTargetId);
     setError(null);
     try {
       const { error: deleteError } = await supabase
         .from("congratulations")
         .delete()
-        .eq("id", id)
+        .eq("id", deleteTargetId)
         .eq("user_id", userId);
 
       if (deleteError) throw deleteError;
 
-      setRows((prev) => prev.filter((row) => row.id !== id));
+      setRows((prev) => prev.filter((row) => row.id !== deleteTargetId));
     } catch (err) {
       console.error("Error deleting congratulation:", err);
       setError("Не удалось удалить поздравление.");
     } finally {
       setSavingId(null);
+      setDeleteTargetId(null);
     }
   };
 
   const deleteAll = async () => {
-    if (!window.confirm(`Удалить все ${rows.length} поздравлений? Это действие нельзя отменить.`)) return;
+    setShowDeleteAllConfirm(true);
+  };
+
+  const confirmDeleteAll = async () => {
+    setShowDeleteAllConfirm(false);
     setDeletingAll(true);
     setError(null);
     try {
@@ -421,6 +442,55 @@ export default function CongratulationsManager({
           ))}
         </ul>
       )}
+
+      <AlertDialog
+        open={!!deleteTargetId}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTargetId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить поздравление?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Это действие нельзя отменить. Поздравление будет удалено из пула.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void confirmDeleteRow()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={showDeleteAllConfirm}
+        onOpenChange={setShowDeleteAllConfirm}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить все поздравления?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Это действие нельзя отменить. Все {rows.length} поздравлений будут
+              удалены из вашего пула.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void confirmDeleteAll()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Удалить все
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

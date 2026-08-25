@@ -104,7 +104,7 @@ async function getRateLimitError(): Promise<string | null> {
   const { success } = await rateLimit.limit(identifier);
 
   if (!success) {
-    return "Too many attempts. Please try again later.";
+    return "Слишком много попыток. Попробуйте позже.";
   }
   return null;
 }
@@ -120,7 +120,7 @@ export const signUpAction = async (formData: FormData) => {
     return encodedRedirect(
       "error",
       "/sign-up",
-      "Email and password are required",
+      "Email и пароль обязательны для заполнения",
     );
   }
 
@@ -340,7 +340,7 @@ export const forgotPasswordAction = async (formData: FormData) => {
   const callbackUrl = formData.get("callbackUrl")?.toString();
 
   if (!email) {
-    return encodedRedirect("error", "/forgot-password", "Email is required");
+    return encodedRedirect("error", "/forgot-password", "Укажите email");
   }
 
   const rateLimited = await getRateLimitError();
@@ -394,7 +394,7 @@ export const forgotPasswordAction = async (formData: FormData) => {
     return encodedRedirect(
       "error",
       "/forgot-password",
-      "Could not reset password",
+      "Не удалось сбросить пароль",
     );
   }
 
@@ -428,7 +428,7 @@ export const resetPasswordAction = async (formData: FormData) => {
     return encodedRedirect(
       "error",
       "/dashboard/reset-password",
-      "Password and confirm password are required",
+      "Пароль и подтверждение пароля обязательны",
     );
   }
 
@@ -436,7 +436,7 @@ export const resetPasswordAction = async (formData: FormData) => {
     return encodedRedirect(
       "error",
       "/dashboard/reset-password",
-      "Passwords do not match",
+      "Пароли не совпадают",
     );
   }
 
@@ -457,14 +457,14 @@ export const resetPasswordAction = async (formData: FormData) => {
     return encodedRedirect(
       "error",
       "/dashboard/reset-password",
-      "Password update failed",
+      "Не удалось обновить пароль",
     );
   }
 
   return encodedRedirect(
     "success",
     "/dashboard/reset-password",
-    "Password updated",
+    "Пароль успешно обновлён",
   );
 };
 

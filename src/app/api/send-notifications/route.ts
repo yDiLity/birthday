@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { timingSafeEqual } from "node:crypto";
 import { daysUntilBirthday } from "@/lib/birthdays";
 import { getSupabaseServiceRoleKey, getTelegramBotToken } from "@/lib/env";
 import { buildSeedRows } from "@/lib/congratulations";
@@ -208,14 +209,22 @@ async function handleRequest(req: Request) {
     const authHeader = req.headers.get("authorization");
     const supabaseUrl = req.headers.get("x-supabase-url");
     const url = new URL(req.url);
+
+    const timingSafeCompare = (a: string, b: string): boolean => {
+      const bufA = Buffer.from(a);
+      const bufB = Buffer.from(b);
+      if (bufA.length !== bufB.length) return false;
+      return timingSafeEqual(bufA, bufB);
+    };
+
     const bearerOk =
       authHeader?.startsWith("Bearer ") &&
-      authHeader.split(" ")[1] === serviceRoleKey &&
+      timingSafeCompare(authHeader.split(" ")[1] || "", serviceRoleKey) &&
       supabaseUrl === process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const cronSecret = process.env.CRON_SECRET;
+    const cronSecret = process.env.CRON_SECRET ?? "";
     const cronOk =
-      Boolean(cronSecret) &&
-      url.searchParams.get("cron_secret") === cronSecret;
+      cronSecret.length > 0 &&
+      timingSafeCompare(url.searchParams.get("cron_secret") ?? "", cronSecret);
 
     if (!bearerOk && !cronOk) {
       return NextResponse.json(
@@ -446,7 +455,6 @@ async function handleRequest(req: Request) {
       {
         error:
           error instanceof Error ? error.message : "An unknown error occurred",
-        details: error instanceof Error ? error.stack : undefined,
       },
       { status: 500 },
     );

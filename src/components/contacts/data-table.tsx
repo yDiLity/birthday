@@ -225,7 +225,7 @@ export function DataTable<TData extends { id?: string }, TValue>({
           </DropdownMenu>
         </div>
       </div>
-      <div className="rounded-md border border-border/30 bg-card/80 backdrop-blur-sm">
+      <div className="rounded-md border border-border/30 bg-card/80 backdrop-blur-sm overflow-x-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

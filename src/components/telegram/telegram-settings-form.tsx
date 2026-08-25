@@ -1,8 +1,9 @@
 "use client";
 
-// import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -45,18 +46,18 @@ import CongratulationsManager from "@/components/telegram/congratulations-manage
 
 const formSchema = z.object({
   chat_id: z.string().min(1, {
-    message: "Chat ID is required.",
+    message: "Укажите ID чата.",
   }),
   notification_time: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, {
-    message: "Please enter a valid time in 24-hour format (HH:MM).",
+    message: "Введите время в формате ЧЧ:ММ (24-часовой формат).",
   }),
   timezone: z.string(),
   days_before: z.coerce.number().int().min(0).max(30),
   message_template: z.string().min(1, {
-    message: "Message template is required.",
+    message: "Шаблон сообщения обязателен.",
   }),
-  use_random_congratulations: z.boolean().default(false),
-  is_active: z.boolean().default(true),
+  use_random_congratulations: z.boolean(),
+  is_active: z.boolean(),
 });
 
 interface TelegramSettingsFormProps {
@@ -105,7 +106,7 @@ export default function TelegramSettingsForm({
 
   // Initialize form with existing settings data if available
   const form = useForm<z.infer<typeof formSchema>>({
-    // resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema),
     defaultValues: {
       chat_id: settings?.chat_id || "",
       notification_time: formatTimeForInput(
@@ -114,7 +115,7 @@ export default function TelegramSettingsForm({
       timezone: settings?.timezone || "GMT+3",
       days_before: settings?.days_before ?? 0,
       message_template:
-        settings?.message_template || "Today is {{name}}'s birthday!",
+        settings?.message_template || "Сегодня день рождения у {{name}}!",
       use_random_congratulations: settings?.use_random_congratulations ?? false,
       is_active: settings?.is_active ?? true,
     },
@@ -174,10 +175,10 @@ export default function TelegramSettingsForm({
       }
 
       router.refresh();
-      setTestStatus({ success: true, message: "Settings saved successfully!" });
+      setTestStatus({ success: true, message: "Настройки сохранены!" });
     } catch (error) {
       console.error("Error saving telegram settings:", error);
-      setTestStatus({ success: false, message: "Error saving settings." });
+      setTestStatus({ success: false, message: "Ошибка сохранения настроек." });
     } finally {
       setIsSubmitting(false);
     }
@@ -790,7 +791,7 @@ export default function TelegramSettingsForm({
               onClick={async () => {
                 const values = form.getValues();
                 if (!values.chat_id) {
-                  alert("Укажите ID чата для отправки сообщения.");
+                  toast.error("Укажите ID чата для отправки сообщения.");
                   return;
                 }
 
@@ -801,17 +802,17 @@ export default function TelegramSettingsForm({
                   );
 
                   if (result.ok) {
-                    alert("Сообщение успешно отправлено!");
+                    toast.success("Сообщение успешно отправлено!");
                     setPreviewOpen(false);
                   } else {
-                    alert(
+                    toast.error(
                       `Ошибка при отправке: ${result.error || "Неизвестная ошибка"}`,
                     );
                   }
                 } catch (error) {
                   console.error("Error sending message:", error);
-                  alert(
-                    "Ошибка при отправке сообщения. Проверьте консоль для деталей.",
+                  toast.error(
+                    "Ошибка при отправке сообщения.",
                   );
                 }
               }}

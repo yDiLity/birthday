@@ -8,8 +8,8 @@ import {
   type TelegramUpdate,
 } from "@/lib/telegram";
 import { getTelegramBotToken } from "@/lib/env";
-import { randomBytes } from "node:crypto";
 import { createAdminClient } from "../../supabase/admin";
+import { randomBytes } from "node:crypto";
 import { createClient } from "../../supabase/server";
 
 /** Время жизни pairing-записи (30 минут). */
@@ -291,6 +291,21 @@ export async function sendTelegramMessageAction(
 
   if (!chatId) {
     return { ok: false, error: "Укажите ID чата." };
+  }
+
+  // Проверяем, что chatId соответствует настроенному пользователю чату
+  const supabaseAdmin = createAdminClient();
+  const { data: settings } = await supabaseAdmin
+    .from("telegram_settings")
+    .select("chat_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!settings || settings.chat_id !== chatId) {
+    return {
+      ok: false,
+      error: "Нельзя отправлять сообщения в чат, не привязанный к вашему аккаунту.",
+    };
   }
 
   const result = await sendTelegramMessage(token, chatId, text);

@@ -27,6 +27,28 @@ export async function POST(request: Request) {
 
   try {
     const adminSupabase = createAdminClient();
+
+    // Проверяем, существует ли запись с таким relay_id — обновляем только
+    // существующие записи, чтобы анонимный POST не мог создать новую.
+    const { data: existing, error: lookupError } = await adminSupabase
+      .from("password_reset_relays")
+      .select("relay_id")
+      .eq("relay_id", relay)
+      .maybeSingle();
+
+    if (lookupError) {
+      console.error("Error looking up relay:", lookupError);
+      return NextResponse.json(
+        { error: "Storage unavailable" },
+        { status: 500 },
+      );
+    }
+
+    if (!existing) {
+      // Записи нет — молча возвращаем ok, чтобы не раскрывать existence.
+      return NextResponse.json({ ok: true });
+    }
+
     const { error } = await adminSupabase
       .from("password_reset_relays")
       .update({ code })

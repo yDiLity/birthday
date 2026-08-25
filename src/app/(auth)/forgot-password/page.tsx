@@ -60,7 +60,7 @@ export default async function ForgotPassword(props: {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="email@example.com"
                 required
                 className="w-full"
               />

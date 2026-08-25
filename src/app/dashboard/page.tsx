@@ -14,8 +14,8 @@ import { createClient } from "../../../supabase/server";
 import { Cake, Gift, Users, Bell } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "Birthday reminder dashboard.",
+  title: "Панель управления",
+  description: "Напоминания о днях рождения.",
 };
 
 export default async function DashboardPage() {

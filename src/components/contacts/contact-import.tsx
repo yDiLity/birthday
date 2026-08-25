@@ -92,7 +92,7 @@ export default function ContactImport({
       const worksheet = workbook.worksheets[0];
 
       if (!worksheet) {
-        throw new Error("No worksheet found");
+        throw new Error("Лист не найден");
       }
 
       const firstRow = worksheet.getRow(1);
