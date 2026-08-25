@@ -245,7 +245,10 @@ export default function ContactImport({
       if (uniqueContacts.length === 0) {
         setResult({
           success: false,
-          message: `Все ${contacts.length} контактов уже есть на сайте.`,
+          message:
+            duplicates.length === 1
+              ? "1 контакт уже есть на сайте."
+              : `${duplicates.length} контактов уже есть на сайте.`,
           duplicates,
         });
         return;
