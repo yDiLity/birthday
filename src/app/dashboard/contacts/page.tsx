@@ -55,7 +55,7 @@ export default async function ContactsPage() {
             />
           </TabsContent>
           <TabsContent value="import">
-            <ContactImport userId={user.id} />
+            <ContactImport userId={user.id} existingContacts={contacts as Tables<"contacts">[]} />
           </TabsContent>
         </Tabs>
       ) : (
@@ -81,7 +81,7 @@ export default async function ContactsPage() {
             </div>
           </TabsContent>
           <TabsContent value="import">
-            <ContactImport userId={user.id} />
+            <ContactImport userId={user.id} existingContacts={[]} />
           </TabsContent>
         </Tabs>
       )}

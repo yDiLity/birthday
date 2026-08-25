@@ -4,12 +4,20 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "../../../supabase/client";
 import { useRouter } from "next/navigation";
-import { Upload, AlertCircle, CheckCircle2 } from "lucide-react";
+import {
+  Upload,
+  AlertCircle,
+  CheckCircle2,
+  ChevronDown,
+  AlertTriangle,
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Workbook } from "exceljs";
+import type { Tables } from "@/types/supabase";
 
 interface ContactImportProps {
   userId: string;
+  existingContacts: Tables<"contacts">[];
 }
 
 interface ParsedContact {
@@ -17,15 +25,22 @@ interface ParsedContact {
   birth_date: string;
 }
 
-export default function ContactImport({ userId }: ContactImportProps) {
+interface ImportResult {
+  success: boolean;
+  message: string;
+  imported?: number;
+  failed?: number;
+  duplicates?: string[];
+}
+
+export default function ContactImport({
+  userId,
+  existingContacts,
+}: ContactImportProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [result, setResult] = useState<{
-    success: boolean;
-    message: string;
-    imported?: number;
-    failed?: number;
-  } | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [showDuplicates, setShowDuplicates] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -37,23 +52,43 @@ export default function ContactImport({ userId }: ContactImportProps) {
     }
   };
 
+  const normalize = (s: string) =>
+    s
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+
+  const findDuplicates = (parsed: ParsedContact[]): string[] => {
+    const existingNames = new Set(
+      existingContacts.map((c) => normalize(c.name)),
+    );
+    const seen = new Set<string>();
+    const dupes: string[] = [];
+
+    for (const contact of parsed) {
+      const norm = normalize(contact.name);
+      if (existingNames.has(norm) && !seen.has(norm)) {
+        seen.add(norm);
+        dupes.push(contact.name);
+      }
+    }
+    return dupes;
+  };
+
   const parseExcel = async (file: File): Promise<ParsedContact[]> => {
     const result: ParsedContact[] = [];
     const workbook = new Workbook();
 
     if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
-      // Handle Excel file
       const buffer = await file.arrayBuffer();
       await workbook.xlsx.load(buffer);
 
-      // Get first worksheet
       const worksheet = workbook.worksheets[0];
 
       if (!worksheet) {
         throw new Error("No worksheet found");
       }
 
-      // Determine if first row is header
       const firstRow = worksheet.getRow(1);
       const hasHeader =
         firstRow.values &&
@@ -75,7 +110,6 @@ export default function ContactImport({ userId }: ContactImportProps) {
         const values = row.values;
         if (!values || values.length < 3) return;
 
-        // Handle the new name format: Lastname Firstname Patronymic
         const fullName = String(values[1] || "").trim();
         let surname = "";
         let firstName = "";
@@ -83,10 +117,9 @@ export default function ContactImport({ userId }: ContactImportProps) {
         if (fullName) {
           const nameParts = fullName.split(" ");
           if (nameParts.length >= 1) {
-            surname = nameParts[0]; // First part is surname
+            surname = nameParts[0];
           }
           if (nameParts.length >= 2) {
-            // Combine remaining parts as first name (including patronymic)
             firstName = nameParts.slice(1).join(" ");
           }
         }
@@ -116,7 +149,6 @@ export default function ContactImport({ userId }: ContactImportProps) {
           birthDate &&
           !Number.isNaN(birthDate.getTime())
         ) {
-          // Store in format: Lastname Firstname Patronymic (as expected by the display functions)
           result.push({
             name: `${surname} ${firstName}`,
             birth_date: birthDate.toISOString().split("T")[0],
@@ -124,7 +156,6 @@ export default function ContactImport({ userId }: ContactImportProps) {
         }
       });
     } else {
-      // Handle CSV file
       const text = await file.text();
       const lines = text.split("\n");
 
@@ -142,7 +173,6 @@ export default function ContactImport({ userId }: ContactImportProps) {
         const columns = line.split(",");
         if (columns.length < 3) continue;
 
-        // Handle the new name format: Lastname Firstname Patronymic
         const fullName = columns[0].trim();
         let surname = "";
         let firstName = "";
@@ -150,10 +180,9 @@ export default function ContactImport({ userId }: ContactImportProps) {
         if (fullName) {
           const nameParts = fullName.split(" ");
           if (nameParts.length >= 1) {
-            surname = nameParts[0]; // First part is surname
+            surname = nameParts[0];
           }
           if (nameParts.length >= 2) {
-            // Combine remaining parts as first name (including patronymic)
             firstName = nameParts.slice(1).join(" ");
           }
         }
@@ -178,7 +207,6 @@ export default function ContactImport({ userId }: ContactImportProps) {
           birthDate &&
           !Number.isNaN(birthDate.getTime())
         ) {
-          // Store in format: Lastname Firstname Patronymic (as expected by the display functions)
           result.push({
             name: `${surname} ${firstName}`,
             birth_date: birthDate.toISOString().split("T")[0],
@@ -202,18 +230,32 @@ export default function ContactImport({ userId }: ContactImportProps) {
       if (contacts.length === 0) {
         setResult({
           success: false,
-          message: "No valid contacts found in the file.",
+          message: "Не удалось найти контакты в файле.",
         });
         return;
       }
 
-      // Add user_id to each contact
-      const contactsWithUserId = contacts.map((contact) => ({
+      const duplicates = findDuplicates(contacts);
+
+      const uniqueContacts = contacts.filter(
+        (c) =>
+          !duplicates.some((d) => normalize(d) === normalize(c.name)),
+      );
+
+      if (uniqueContacts.length === 0) {
+        setResult({
+          success: false,
+          message: `Все ${contacts.length} контактов уже есть на сайте.`,
+          duplicates,
+        });
+        return;
+      }
+
+      const contactsWithUserId = uniqueContacts.map((contact) => ({
         ...contact,
         user_id: userId,
       }));
 
-      // Insert contacts in batches to avoid hitting limits
       const batchSize = 50;
       let imported = 0;
       let failed = 0;
@@ -230,14 +272,20 @@ export default function ContactImport({ userId }: ContactImportProps) {
         }
       }
 
+      const parts: string[] = [];
+      if (imported > 0) parts.push(`Импортировано: ${imported}`);
+      if (failed > 0) parts.push(`Ошибки: ${failed}`);
+      if (duplicates.length > 0)
+        parts.push(`Дубликатов: ${duplicates.length}`);
+
       setResult({
         success: imported > 0,
-        message: `Import completed. ${imported} contacts imported successfully.${failed > 0 ? ` ${failed} contacts failed.` : ""}`,
+        message: parts.join(". ") + ".",
         imported,
         failed,
+        duplicates: duplicates.length > 0 ? duplicates : undefined,
       });
 
-      // Refresh the page to show new contacts
       if (imported > 0) {
         router.refresh();
       }
@@ -246,7 +294,7 @@ export default function ContactImport({ userId }: ContactImportProps) {
       setResult({
         success: false,
         message:
-          "Error processing file. Please make sure it's a valid Excel or CSV file with the correct format.",
+          "Ошибка при обработке файла. Убедитесь, что это корректный Excel или CSV файл.",
       });
     } finally {
       setIsUploading(false);
@@ -306,25 +354,56 @@ export default function ContactImport({ userId }: ContactImportProps) {
           variant={result.success ? "default" : "destructive"}
           className={
             result.success
-              ? "bg-[#30D158]/10 border-[#30D158]/30 text-[#30D158]"
+              ? result.duplicates && result.duplicates.length > 0
+                ? "bg-[#FF9F0A]/10 border-[#FF9F0A]/30 text-[#FF9F0A]"
+                : "bg-[#30D158]/10 border-[#30D158]/30 text-[#30D158]"
               : "bg-[#FF453A]/10 border-[#FF453A]/30 text-[#FF453A]"
           }
         >
           <div className="flex items-center gap-2">
-            {result.success ? (
-              <CheckCircle2 className="w-4 h-4" />
+              {result.success ? (
+              result.duplicates && result.duplicates.length > 0 ? (
+                <AlertTriangle className="w-4 h-4" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )
             ) : (
               <AlertCircle className="w-4 h-4" />
             )}
-            <AlertTitle>{result.success ? "Успешно" : "Ошибка"}</AlertTitle>
+            <AlertTitle>{result.success ? "Готово" : "Ошибка"}</AlertTitle>
           </div>
           <AlertDescription
             className={
-              result.success ? "text-[#30D158]/90" : "text-[#FF453A]/90"
+              result.success
+                ? "text-[#30D158]/90"
+                : "text-[#FF453A]/90"
             }
           >
             {result.message}
           </AlertDescription>
+
+          {result.duplicates && result.duplicates.length > 0 && (
+            <div className="mt-3">
+              <button
+                onClick={() => setShowDuplicates(!showDuplicates)}
+                className="flex items-center gap-1.5 text-sm font-medium hover:underline cursor-pointer"
+              >
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform duration-200 ${showDuplicates ? "rotate-180" : ""}`}
+                />
+                {result.duplicates.length === 1
+                  ? "1 контакт уже есть на сайте"
+                  : `${result.duplicates.length} контактов уже есть на сайте`}
+              </button>
+              {showDuplicates && (
+                <ul className="mt-2 ml-6 list-disc text-sm space-y-0.5">
+                  {result.duplicates.map((name) => (
+                    <li key={name}>{name}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </Alert>
       )}
     </div>
