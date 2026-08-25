@@ -358,6 +358,9 @@ export default function ContactImport({
           <FileDown className="h-4 w-4" />
           Скачать шаблон Excel
         </Button>
+        <p className="text-xs text-muted-foreground mt-2">
+          В шаблоне уже есть 2 примера — удалите их и заполните своими данными.
+        </p>
       </div>
 
       <div className="flex items-center gap-4 mb-6">
